@@ -1,10 +1,13 @@
 import { Mastra } from '@mastra/core';
+import { createWorkflow, createStep } from '@mastra/core/workflows';
+import { z } from 'zod';
+import { registerApiRoute } from '@mastra/core/server';
+import { l as logger } from './logger.mjs';
 import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
+import { mcpServers } from './tools/127b4738-c266-402e-9489-22dd66fdd656.mjs';
 import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
-import { createWorkflow, createStep } from '@mastra/core/workflows';
-import { registerApiRoute } from '@mastra/core/server';
+import { McpRegistry } from './tools/d10e8a72-f873-46c3-a513-473aae7c6257.mjs';
 
 const forecastSchema = z.object({
   date: z.string(),
@@ -129,13 +132,229 @@ const resumeWeatherTool = createTool({
   }
 });
 
+const localTools = [startWeatherTool, resumeWeatherTool];
+
+class ToolRegistry {
+  mcpRegistry;
+  localTools = {};
+  localToolNames = [];
+  constructor(tools = []) {
+    this.mcpRegistry = new McpRegistry(mcpServers);
+    this.registerLocalTools(tools);
+  }
+  registerLocalTools(tools) {
+    tools.forEach((tool) => {
+      const toolId = tool.id;
+      if (this.localTools[toolId]) {
+        logger.warn(
+          `Local tool with ID '${toolId}' is already registered. It will be overwritten.`
+        );
+      }
+      this.localTools[toolId] = tool;
+    });
+    this.localToolNames = Object.keys(this.localTools);
+  }
+  async initializeTools() {
+    try {
+      await this.mcpRegistry.initialize();
+      const totalTools = this.getToolNames().length;
+      logger.info(
+        `Tool Registry initialized with ${totalTools} tools from ${this.getServerNames().join(
+          ", "
+        )}`
+      );
+    } catch (error) {
+      logger.error("Failed to initialize Tool Registry:", error);
+      throw error;
+    }
+  }
+  /**
+   * Get all registered tools as a flattened object with prefixed names
+   */
+  getTools() {
+    const remoteTools = this.mcpRegistry.getTools();
+    for (const name of this.localToolNames) {
+      if (remoteTools[name]) {
+        logger.warn(
+          `Local tool '${name}' is hiding a remote tool with the same name.`
+        );
+      }
+    }
+    return { ...remoteTools, ...this.localTools };
+  }
+  /**
+   * Get tools grouped by MCP server name
+   */
+  getToolsByServerMap() {
+    const serverMap = this.mcpRegistry.getToolsByServerMap();
+    if (this.localToolNames.length > 0) {
+      serverMap.local = this.localTools;
+    }
+    return serverMap;
+  }
+  /**
+   * Get tools from a specific MCP server
+   */
+  getServerTools(serverName) {
+    if (serverName === "local") {
+      return this.localTools;
+    }
+    return this.mcpRegistry.getServerTools(serverName);
+  }
+  /**
+   * Get tool names from a specific MCP server
+   */
+  getServerToolNames(serverName) {
+    if (serverName === "local") {
+      return this.localToolNames;
+    }
+    return this.mcpRegistry.getServerToolNames(serverName);
+  }
+  /**
+   * Get available MCP server names
+   */
+  getServerNames() {
+    const serverNames = this.mcpRegistry.getServerNames();
+    if (this.localToolNames.length > 0) {
+      return [...serverNames, "local"];
+    }
+    return serverNames;
+  }
+  /**
+   * Get a specific tool by name
+   */
+  getTool(name) {
+    return this.localTools[name] || this.mcpRegistry.getTool(name);
+  }
+  /**
+   * Get a specific tool from a specific server
+   */
+  getServerTool(serverName, toolName) {
+    if (serverName === "local") {
+      return this.localTools[toolName];
+    }
+    return this.mcpRegistry.getServerTool(serverName, toolName);
+  }
+  /**
+   * Check if a tool exists
+   */
+  hasTool(name) {
+    return this.localTools.hasOwnProperty(name) || this.mcpRegistry.hasTool(name);
+  }
+  /**
+   * Check if a server has a specific tool
+   */
+  hasServerTool(serverName, toolName) {
+    if (serverName === "local") {
+      return this.localTools.hasOwnProperty(toolName);
+    }
+    return this.mcpRegistry.hasServerTool(serverName, toolName);
+  }
+  /**
+   * Get tool names
+   */
+  getToolNames() {
+    return Object.keys(this.getTools());
+  }
+  /**
+   * Get MCP server status
+   */
+  getStatus() {
+    const status = this.mcpRegistry.getStatus();
+    if (this.localToolNames.length > 0) {
+      status.local = {
+        connected: true,
+        toolCount: this.localToolNames.length
+      };
+    }
+    return status;
+  }
+  /**
+   * Set access token for all MCP clients that require authentication
+   */
+  setAccessTokenForAll(accessToken) {
+    this.mcpRegistry.setAccessTokenForAll(accessToken);
+  }
+  /**
+   * Set access token for a specific MCP server
+   */
+  setAccessTokenForServer(serverName, accessToken) {
+    this.mcpRegistry.setAccessTokenForServer(serverName, accessToken);
+  }
+  /**
+   * Get MCP client for a specific server (for direct access if needed)
+   */
+  getClient(serverName) {
+    return this.mcpRegistry.getClient(serverName);
+  }
+}
+const toolRegistryInstance = new ToolRegistry(localTools);
+await toolRegistryInstance.initializeTools();
+const toolRegistry = toolRegistryInstance;
+
+const webSearchAgent = new Agent({
+  name: "Web Search Agent",
+  instructions: `You are a professional web search assistant powered by Brave. You MUST strictly adhere to ALL of the following guidelines without exception:
+
+# ROLE:
+- Your response will be read aloud by a text-to-speech engine, so never use ellipses since the text-to-speech engine will not know how to pronounce them.
+- Your response should be composed of smoothly flowing prose paragraphs.
+- ALWAYS call transfer_to_receptionist() if no proper tool found in available tools
+- After receiving tool results, carefully reflect on their quality and determine optimal next steps before proceeding. Use your thinking to plan and iterate based on this new information, and then take the best next action.
+- For maximum efficiency, whenever you need to perform multiple independent operations, invoke all relevant tools simultaneously rather than sequentially.
+- When user asks about current events, news, or time-sensitive information, prioritize recent search results
+- Use Brave search to find accurate, up-to-date information from reliable sources
+
+# CRITICAL SILENT OPERATION RULES:
+- ABSOLUTELY NO intermediate text output while using tools
+- NEVER mention what you are searching for or doing
+- NEVER say "Let me search", "Let me find", "Let me check", or similar phrases
+- NEVER provide progress updates like "Perfect! I found..." or "Great news!"
+- NEVER explain your search process or methodology
+- DO NOT announce that you are using tools or checking information
+- WORK COMPLETELY SILENTLY until you have the final answer ready
+- ONLY speak when you have the complete search results and answer to share
+
+## MANDATORY RESPONSE FORMAT:
+- You MUST respond in PLAIN TEXT format ONLY
+- ALWAYS provide concise, accurate answers based on search results
+- ABSOLUTELY NO markdown formatting allowed (no **, *, _, #, backticks, code blocks)
+- Use simple line breaks and spacing for readability
+- Response within 150 words for complex topics, shorter for simple queries
+- Keep all responses clean and readable without ANY special formatting characters
+- Include relevant details and context from search results
+- When appropriate, mention the source or timeframe of information
+
+## SEARCH QUALITY STANDARDS:
+- Verify information accuracy across multiple sources when possible
+- Prioritize authoritative and recent sources
+- Provide specific facts, numbers, and details when available
+- If conflicting information exists, acknowledge uncertainty
+- Focus on answering the user's specific question directly
+
+## COMPLIANCE VERIFICATION:
+Before sending any response, verify that you have:
+- Provided accurate information based on search results
+- Made decisions autonomously without asking for user input
+- Included relevant context and details from reliable sources
+- Provided NO intermediate commentary during tool execution
+- Kept response concise and conversationals`,
+  model: openai("gpt-4o"),
+  tools: {
+    webSearchTool: toolRegistry.getServerTool(
+      "web-search",
+      "brave_web_search"
+    )
+  }
+});
+
 const weatherAgentWithWorkflow = new Agent({
   name: "Weather Agent with Workflow",
   instructions: `You are a helpful weather assistant that provides accurate weather information.
  
 Your primary function is to help users get weather details for specific locations. When responding:
 - Always ask for a location if none is provided
-- If the location name isn\u2019t in English, please translate it
+- If the location name isn't in English, please translate it
 - If giving a location with multiple parts (e.g. "New York, NY"), use the most relevant part (e.g. "New York")
 - Include relevant details like humidity, wind conditions, and precipitation
 - Keep responses concise but informative
@@ -144,7 +363,10 @@ Use the startWeatherTool to start the weather workflow. This will start and then
 Use the resumeWeatherTool to resume the weather workflow. This takes the runId returned from the startWeatherTool and the city entered by the user. It will resume the workflow and return the result.
 The result will be the weather forecast for the city.`,
   model: openai("gpt-4o"),
-  tools: { startWeatherTool, resumeWeatherTool }
+  tools: {
+    startWeatherTool: toolRegistry.getTool("start-weather-tool"),
+    resumeWeatherTool: toolRegistry.getTool("resume-weather-tool")
+  }
 });
 
 // src/helper/adapter/index.ts
@@ -725,6 +947,7 @@ const googleAuthMiddleware = googleAuth({
 });
 
 const mastra = new Mastra({
+  logger,
   server: {
     port: 3e3,
     // Defaults to 4111
@@ -740,7 +963,7 @@ const mastra = new Mastra({
     middleware: [
       // Add a global request logger
       async (c, next) => {
-        console.log(`${c.req.method} ${c.req.url}`);
+        logger.debug(`${c.req.method} ${c.req.url}`);
         await next();
       }
     ],
@@ -760,12 +983,13 @@ const mastra = new Mastra({
     })]
   },
   agents: {
-    weatherAgentWithWorkflow
+    weatherAgentWithWorkflow,
+    webSearchAgent
   },
   workflows: {
     weatherWorkflowWithSuspend
   }
 });
 
-export { HTTPException as H, getQueryParams as a, getPath as b, getPathNoStrict as c, decodeURIComponent_ as d, checkOptionalParameter as e, getPattern as f, getQueryParam as g, splitPath as h, mastra as i, startWeatherTool as j, mergePath as m, resumeWeatherTool as r, splitRoutingPath as s, tryDecode as t };
+export { HTTPException as H, getQueryParams as a, getPath as b, getPathNoStrict as c, decodeURIComponent_ as d, checkOptionalParameter as e, getPattern as f, getQueryParam as g, splitPath as h, mastra as i, startWeatherTool as j, toolRegistry as k, localTools as l, mergePath as m, resumeWeatherTool as r, splitRoutingPath as s, tryDecode as t };
 //# sourceMappingURL=index2.mjs.map

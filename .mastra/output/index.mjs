@@ -19,9 +19,14 @@ import { z, ZodFirstPartyTypeKind } from 'zod';
 import { A2AError } from '@mastra/core/a2a';
 import { isVercelTool } from '@mastra/core/tools';
 import { ReadableStream as ReadableStream$1 } from 'stream/web';
-import '@ai-sdk/openai';
 import '@mastra/core/workflows';
 import '@mastra/core/server';
+import './logger.mjs';
+import 'winston';
+import '@ai-sdk/openai';
+import './tools/127b4738-c266-402e-9489-22dd66fdd656.mjs';
+import './tools/d10e8a72-f873-46c3-a513-473aae7c6257.mjs';
+import './tools/f5737e70-2a0f-40e0-8477-a3d9b23ff6c7.mjs';
 
 // src/utils/filepath.ts
 var getFilePath = (options) => {

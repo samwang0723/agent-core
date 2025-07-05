@@ -1,1 +1,1 @@
-export { googleAuthMiddleware } from "./google";
+export { googleAuthMiddleware } from './google';

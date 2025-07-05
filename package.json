@@ -1,17 +1,19 @@
 {
   "name": "agent-core",
   "scripts": {
-    "dev": "bun run --hot src/mastra/index.ts",
-    "dev:mastra": "mastra dev",
+    "dev": "mastra dev",
     "build": "mastra build",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^1.2.12",
+    "@ai-sdk/google": "^1.2.22",
     "@ai-sdk/openai": "^1.3.22",
     "@hono/oauth-providers": "^0.8.2",
     "@mastra/core": "^0.10.10",
     "hono": "^4.8.4",
+    "winston": "^3.17.0",
     "zod": "^3.25.73"
   },
   "devDependencies": {
