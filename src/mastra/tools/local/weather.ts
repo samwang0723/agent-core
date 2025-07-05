@@ -1,7 +1,9 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { mastra } from '../..';
-import { forecastSchema } from '../../workflows/weather';
+import {
+  forecastSchema,
+  weatherWorkflowWithSuspend,
+} from '../../workflows/weather';
 
 export const startWeatherTool = createTool({
   id: 'start-weather-tool',
@@ -11,8 +13,7 @@ export const startWeatherTool = createTool({
     runId: z.string(),
   }),
   execute: async ({ context }) => {
-    const workflow = mastra.getWorkflow('weatherWorkflowWithSuspend');
-    const run = await workflow.createRunAsync();
+    const run = await weatherWorkflowWithSuspend.createRunAsync();
     await run.start({
       inputData: {},
     });
@@ -32,8 +33,7 @@ export const resumeWeatherTool = createTool({
   }),
   outputSchema: forecastSchema,
   execute: async ({ context }) => {
-    const workflow = mastra.getWorkflow('weatherWorkflowWithSuspend');
-    const run = await workflow.createRunAsync({
+    const run = await weatherWorkflowWithSuspend.createRunAsync({
       runId: context.runId,
     });
     const result = await run.resume({

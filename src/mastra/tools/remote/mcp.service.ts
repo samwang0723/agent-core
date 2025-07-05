@@ -35,12 +35,12 @@ export class McpClient {
       await this.initializeSession();
       await this.loadTools();
       logger.info(
-        `MCP client for ${this.config.name} initialized with ${this.availableTools.length} tools`,
+        `MCP client for ${this.config.name} initialized with ${this.availableTools.length} tools`
       );
     } catch (error) {
       logger.error(
         `Failed to initialize MCP client for ${this.config.name}:`,
-        error,
+        error
       );
       throw error;
     }
@@ -81,7 +81,7 @@ export class McpClient {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Session initialization failed: ${response.status} - ${errorText}`,
+        `Session initialization failed: ${response.status} - ${errorText}`
       );
     }
 
@@ -137,7 +137,7 @@ export class McpClient {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Failed to list tools: ${response.status} - ${errorText}`,
+        `Failed to list tools: ${response.status} - ${errorText}`
       );
     }
 
@@ -153,14 +153,14 @@ export class McpClient {
 
     logger.info(
       `Loaded ${this.availableTools.length} tools from ${this.config.name}:`,
-      this.availableTools.map((t) => t.name),
+      this.availableTools.map(t => t.name)
     );
   }
 
   async callTool(
     name: string,
     parameters: Record<string, unknown> | ToolExecutionContext<z.ZodType>,
-    requiresAuth?: boolean,
+    requiresAuth?: boolean
   ): Promise<unknown> {
     if (!this.sessionId) {
       throw new Error('MCP session not initialized');
@@ -170,11 +170,11 @@ export class McpClient {
     const needsAuth =
       requiresAuth ||
       this.config.requiresAuth ||
-      this.availableTools.find((t) => t.name === name)?.requiresAuth;
+      this.availableTools.find(t => t.name === name)?.requiresAuth;
 
     if (needsAuth && !this.accessToken) {
       throw new Error(
-        `Tool '${name}' requires authentication but no access token provided`,
+        `Tool '${name}' requires authentication but no access token provided`
       );
     }
 
@@ -203,14 +203,14 @@ export class McpClient {
     try {
       const startTime = Date.now();
       logger.info(
-        `Calling tool ${name} with parameters: ${JSON.stringify(payload)}, headers: ${JSON.stringify(headers)}`,
+        `Calling tool ${name} with parameters: ${JSON.stringify(payload)}, headers: ${JSON.stringify(headers)}`
       );
       const response = await fetch(this.config.url, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(
-          parseInt(process.env.MCP_TIMEOUT || '30000'),
+          parseInt(process.env.MCP_TIMEOUT || '30000')
         ),
       });
 
@@ -228,7 +228,7 @@ export class McpClient {
       const endTime = Date.now();
       const duration = endTime - startTime;
       logger.info(
-        `Tool call result: ${JSON.stringify(result).slice(0, 200)}... in ${duration}ms`,
+        `Tool call result: ${JSON.stringify(result).slice(0, 200)}... in ${duration}ms`
       );
 
       if (result.error) {
@@ -267,18 +267,18 @@ export class McpClient {
   }
 
   getAvailableTools(): Tool<z.ZodType>[] {
-    return this.availableTools.map((mcpTool) => {
+    return this.availableTools.map(mcpTool => {
       const zodSchema = this.convertInputSchemaToZod(mcpTool.inputSchema);
 
       return createTool({
         id: mcpTool.name,
         description: mcpTool.description,
         inputSchema: zodSchema,
-        execute: async (parameters) => {
+        execute: async parameters => {
           return await this.callTool(
             mcpTool.name,
             parameters,
-            mcpTool.requiresAuth,
+            mcpTool.requiresAuth
           );
         },
       });
@@ -298,7 +298,7 @@ export class McpClient {
           for (const key of Object.keys(schema.properties)) {
             const prop = schema.properties[key];
             let zodType = this.convertInputSchemaToZod(prop).describe(
-              prop.description || '',
+              prop.description || ''
             );
 
             if (!schema.required?.includes(key)) {
@@ -329,7 +329,7 @@ export class McpClient {
   }
 
   getToolNames(): string[] {
-    return this.availableTools.map((t) => t.name);
+    return this.availableTools.map(t => t.name);
   }
 
   private parseResponse(responseText: string): JsonRpcResponse {
@@ -343,7 +343,7 @@ export class McpClient {
       const lines = responseText
         .trim()
         .split('\n')
-        .filter((line) => line.startsWith('data: '));
+        .filter(line => line.startsWith('data: '));
 
       if (lines.length > 0) {
         // In case of multiple data lines, we might need to decide how to handle them.

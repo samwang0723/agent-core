@@ -156,7 +156,7 @@ export function logToolSchemaForLLM(
   toolName: string,
   description: string,
   parameters: z.ZodType,
-  server?: string,
+  server?: string
 ): void {
   try {
     const schemaInfo: ToolSchemaInfo = {
@@ -186,7 +186,7 @@ export function logToolSchemaForLLM(
 export function logAgentToolSchemasForLLM(
   agentName: string,
   tools: Record<string, { description: string; parameters: z.ZodType }>,
-  serverName?: string,
+  serverName?: string
 ): void {
   const toolSchemas: ToolSchemaInfo[] = [];
 
@@ -211,7 +211,7 @@ export function logAgentToolSchemasForLLM(
     toolSchemas,
     summary: {
       agentName,
-      availableTools: toolSchemas.map((t) => ({
+      availableTools: toolSchemas.map(t => ({
         name: t.name,
         description: t.description,
         hasParameters: Object.keys(t.parameters.properties || {}).length > 0,
@@ -229,7 +229,7 @@ export function logCompleteToolRegistryForLLM(
     string,
     Record<string, { description: string; parameters: z.ZodType }>
   >,
-  totalToolCount: number,
+  totalToolCount: number
 ): void {
   type ServerToolInfo = {
     toolCount: number;
@@ -254,7 +254,7 @@ export function logCompleteToolRegistryForLLM(
       } catch (error) {
         logger.warn(
           `Failed to process tool ${toolName} from ${serverName}:`,
-          error,
+          error
         );
       }
     }
@@ -278,7 +278,7 @@ export function logCompleteToolRegistryForLLM(
           capabilities: info.tools
             .map((t: ToolSchemaInfo) => t.description)
             .slice(0, 3), // Sample capabilities
-        }),
+        })
       ),
     },
   });

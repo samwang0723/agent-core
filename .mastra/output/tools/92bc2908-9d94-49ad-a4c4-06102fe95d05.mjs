@@ -37,4 +37,4 @@ const mcpServers = [
 ];
 
 export { mcpServers };
-//# sourceMappingURL=127b4738-c266-402e-9489-22dd66fdd656.mjs.map
+//# sourceMappingURL=92bc2908-9d94-49ad-a4c4-06102fe95d05.mjs.map

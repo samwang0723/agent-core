@@ -1,11 +1,13 @@
 {
   "name": "agent-core",
   "scripts": {
-    "dev": "mastra dev",
-    "build": "mastra build",
+    "dev": "bun --env-file=.env run mastra dev",
+    "build": "bun --env-file=.env run mastra build",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
+  "author": "sam.wang.0723@gmail.com",
+  "license": "MIT",
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",
     "@ai-sdk/google": "^1.2.22",

@@ -1,9 +1,10 @@
 import { Mastra } from '@mastra/core';
 import { weatherAgentWithWorkflow, webSearchAgent } from './agents/index';
 import { weatherWorkflowWithSuspend } from './workflows/weather';
-import { googleAuthMiddleware } from './auth';
-import { registerApiRoute } from '@mastra/core/server';
 import logger from './utils/logger';
+import { registerApiRoute } from '@mastra/core/server';
+import { intentRouter } from './network/intent';
+import { googleAuthMiddleware } from './auth';
 
 export const mastra: Mastra = new Mastra({
   logger: logger,
@@ -27,7 +28,7 @@ export const mastra: Mastra = new Mastra({
       registerApiRoute('/auth/google', {
         method: 'GET',
         middleware: [googleAuthMiddleware],
-        handler: async (c) => {
+        handler: async c => {
           const token = c.get('token');
           const grantedScopes = c.get('granted-scopes');
           const user = c.get('user-google');
@@ -37,6 +38,16 @@ export const mastra: Mastra = new Mastra({
             grantedScopes,
             user,
           });
+        },
+      }),
+      registerApiRoute('/chat/stream', {
+        method: 'POST',
+        handler: async c => {
+          const { message } = await c.req.json();
+          const stream = await intentRouter.stream([
+            { role: 'user', content: message },
+          ]);
+          return stream.toDataStreamResponse();
         },
       }),
     ],

@@ -53,7 +53,7 @@ Before sending any response, verify that you have:
   tools: {
     webSearchTool: toolRegistry.getServerTool(
       'web-search',
-      'brave_web_search',
+      'brave_web_search'
     )!,
   },
 });

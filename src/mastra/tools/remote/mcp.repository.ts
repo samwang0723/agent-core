@@ -12,8 +12,8 @@ export class McpRegistry {
   constructor(private configs: McpServerConfig[]) {}
 
   async initialize(): Promise<void> {
-    const initPromises = this.configs.map((config) =>
-      this.initializeClient(config),
+    const initPromises = this.configs.map(config =>
+      this.initializeClient(config)
     );
 
     // Initialize all clients in parallel
@@ -25,13 +25,13 @@ export class McpRegistry {
       if (result.status === 'rejected') {
         logger.error(
           `Failed to initialize MCP client for ${config.name}:`,
-          result.reason,
+          result.reason
         );
       }
     });
 
     logger.info(
-      `MCP Registry initialized with ${this.clients.size} active clients and ${this.allTools.size} total tools`,
+      `MCP Registry initialized with ${this.clients.size} active clients and ${this.allTools.size} total tools`
     );
   }
 
@@ -60,7 +60,7 @@ export class McpRegistry {
 
         if (this.allTools.has(toolName)) {
           logger.warn(
-            `Tool name collision: Tool '${toolName}' from server '${config.name}' is overwriting a previously registered tool.`,
+            `Tool name collision: Tool '${toolName}' from server '${config.name}' is overwriting a previously registered tool.`
           );
         }
 
@@ -75,7 +75,7 @@ export class McpRegistry {
     } catch (error) {
       logger.error(
         `Failed to initialize MCP client for ${config.name}:`,
-        error,
+        error
       );
       throw error;
     }
@@ -148,7 +148,7 @@ export class McpRegistry {
    */
   getServerTool(
     serverName: string,
-    toolName: string,
+    toolName: string
   ): Tool<z.ZodType> | undefined {
     const serverTools = this.toolsByServer.get(serverName);
     return serverTools?.get(toolName);
@@ -190,7 +190,7 @@ export class McpRegistry {
     const status: Record<string, { connected: boolean; toolCount: number }> =
       {};
 
-    this.configs.forEach((config) => {
+    this.configs.forEach(config => {
       const client = this.clients.get(config.name);
       const serverTools = this.toolsByServer.get(config.name);
       status[config.name] = {
@@ -207,7 +207,7 @@ export class McpRegistry {
    */
   setAccessTokenForAll(accessToken: string | null): void {
     this.clients.forEach((client, serverName) => {
-      const config = this.configs.find((c) => c.name === serverName);
+      const config = this.configs.find(c => c.name === serverName);
       if (config?.requiresAuth) {
         client.setAccessToken(accessToken);
       }
@@ -219,7 +219,7 @@ export class McpRegistry {
    */
   setAccessTokenForServer(
     serverName: string,
-    accessToken: string | null,
+    accessToken: string | null
   ): void {
     const client = this.clients.get(serverName);
     if (client) {

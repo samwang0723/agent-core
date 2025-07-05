@@ -48,7 +48,7 @@ export const fetchWeatherWithSuspend = createStep({
     }
 
     const geocodingUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-      resumeData.city,
+      resumeData.city
     )}&count=1`;
     const geocodingResponse = await fetch(geocodingUrl);
     const geocodingData = (await geocodingResponse.json()) as {
@@ -82,7 +82,7 @@ export const fetchWeatherWithSuspend = createStep({
       condition: getWeatherCondition(data.current.weathercode),
       precipitationChance: data.hourly.precipitation_probability.reduce(
         (acc, curr) => Math.max(acc, curr),
-        0,
+        0
       ),
       location: resumeData.city,
     };

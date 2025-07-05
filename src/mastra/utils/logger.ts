@@ -10,7 +10,7 @@ const winstonLogger = winston.createLogger({
         ? JSON.stringify(rest, null, 2)
         : '';
       return `${timestamp} ${level}: ${message} ${args}`;
-    }),
+    })
   ),
   transports: [
     new winston.transports.Console({
@@ -26,7 +26,7 @@ const winstonLogger = winston.createLogger({
             ? JSON.stringify(rest, null, 2)
             : '';
           return `${timestamp} ${level}: ${message} ${args} ${extraArgs}`.trim();
-        }),
+        })
       ),
     }),
     new winston.transports.File({ filename: 'error.log', level: 'error' }),
@@ -73,7 +73,7 @@ const logger: IMastraLogger = {
       filters?: Record<string, any>;
       page?: number;
       perPage?: number;
-    },
+    }
   ): Promise<{
     logs: any[];
     total: number;
@@ -83,7 +83,7 @@ const logger: IMastraLogger = {
   }> => {
     console.log(
       `Getting logs for transport: ${transportId} with params:`,
-      params,
+      params
     );
     return {
       logs: [],

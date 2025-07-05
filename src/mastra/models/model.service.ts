@@ -7,7 +7,7 @@ import { MODEL_CONFIGS } from './model.dto';
 
 // Create a model instance from a given key
 export const createModelByKey = (
-  modelKey?: string,
+  modelKey?: string
 ): LanguageModelV1 | undefined => {
   if (!modelKey) return undefined;
 
@@ -33,7 +33,7 @@ export const createModelByKey = (
   }
 
   logger.info(
-    `Initializing LLM model: ${config.modelName} (${config.provider}) from key: ${modelKey}`,
+    `Initializing LLM model: ${config.modelName} (${config.provider}) from key: ${modelKey}`
   );
 
   try {
@@ -45,7 +45,7 @@ export const createModelByKey = (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const model = anthropic(config.modelName as any);
         logger.info(
-          `✅ Anthropic model ${config.modelName} initialized successfully for key ${modelKey}`,
+          `✅ Anthropic model ${config.modelName} initialized successfully for key ${modelKey}`
         );
         return model;
       }
@@ -57,7 +57,7 @@ export const createModelByKey = (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const model = openai(config.modelName as any);
         logger.info(
-          `✅ OpenAI model ${config.modelName} initialized successfully for key ${modelKey}`,
+          `✅ OpenAI model ${config.modelName} initialized successfully for key ${modelKey}`
         );
         return model;
       }
@@ -68,7 +68,7 @@ export const createModelByKey = (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const model = google(`models/${config.modelName}` as any);
         logger.info(
-          `✅ Google model models/${config.modelName} initialized successfully for key ${modelKey}`,
+          `✅ Google model models/${config.modelName} initialized successfully for key ${modelKey}`
         );
         return model;
       }
@@ -82,7 +82,7 @@ export const createModelByKey = (
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     logger.error(
-      `Failed to initialize model ${config.modelName} for key ${modelKey}: ${errorMessage}`,
+      `Failed to initialize model ${config.modelName} for key ${modelKey}: ${errorMessage}`
     );
     throw error;
   }
