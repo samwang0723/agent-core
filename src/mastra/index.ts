@@ -1,6 +1,8 @@
 import { Mastra } from "@mastra/core";
 import { weatherAgentWithWorkflow } from "./agents/weather";
 import { weatherWorkflowWithSuspend } from "./workflows/weather";
+import { googleAuthMiddleware } from "./auth";
+import { registerApiRoute } from "@mastra/core/server";
 
 export const mastra: Mastra = new Mastra({
   server: {
@@ -13,35 +15,30 @@ export const mastra: Mastra = new Mastra({
       credentials: false,
     },
     middleware: [
-      // {
-      //   handler: async (c, next) => {
-      //     // Example: Add authentication check
-      //     const authHeader = c.req.header("Authorization");
-      //     if (!authHeader) {
-      //       return new Response("Unauthorized", { status: 401 });
-      //     }
- 
-      //     await next();
-      //   },
-      //   path: "/api/*",
-      // },
       // Add a global request logger
       async (c, next) => {
         console.log(`${c.req.method} ${c.req.url}`);
         await next();
       },
     ],
+    apiRoutes: [
+      registerApiRoute("/auth/google", {
+        method: "GET",
+        middleware: [googleAuthMiddleware],
+        handler: async (c) => {
+          const token = c.get("token");
+          const grantedScopes = c.get("granted-scopes");
+          const user = c.get("user-google");
+
+          return c.json({
+            token,
+            grantedScopes,
+            user,
+          });
+        },
+      }),
+    ],
   },
   agents: { weatherAgentWithWorkflow },
   workflows: { weatherWorkflowWithSuspend },
 });
-
-// const agent = mastra.getAgent('weatherAgentWithWorkflow');
-// const result = await agent.generate([
-//   {
-//     role: 'user',
-//     content: 'London',
-//   },
-// ]);
-
-// console.log(result);

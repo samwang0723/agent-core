@@ -5,6 +5,7 @@
       "name": "agent-core",
       "dependencies": {
         "@ai-sdk/openai": "^1.3.22",
+        "@hono/oauth-providers": "^0.8.2",
         "@mastra/core": "^0.10.10",
         "hono": "^4.8.4",
         "zod": "^3.25.73",
@@ -13,6 +14,7 @@
         "@types/bun": "latest",
         "@types/node": "^24.0.10",
         "mastra": "^0.10.10",
+        "prettier": "^3.6.2",
         "tsx": "^4.20.3",
         "typescript": "^5.8.3",
       },
@@ -192,6 +194,8 @@
     "@grpc/grpc-js": ["@grpc/grpc-js@1.13.4", "", { "dependencies": { "@grpc/proto-loader": "^0.7.13", "@js-sdsl/ordered-map": "^4.4.2" } }, "sha512-GsFaMXCkMqkKIvwCQjCrwH+GHbPKBjhwo/8ZuUkWHqbI73Kky9I+pQltrlT0+MWpedCoosda53lgjYfyEPgxBg=="],
 
     "@grpc/proto-loader": ["@grpc/proto-loader@0.7.15", "", { "dependencies": { "lodash.camelcase": "^4.3.0", "long": "^5.0.0", "protobufjs": "^7.2.5", "yargs": "^17.7.2" }, "bin": { "proto-loader-gen-types": "build/bin/proto-loader-gen-types.js" } }, "sha512-tMXdRCfYVixjuFK+Hk0Q1s38gV9zDiDJfWL3h1rv4Qc39oILCu1TRTDt7+fGUI8K4G1Fj125Hx/ru3azECWTyQ=="],
+
+    "@hono/oauth-providers": ["@hono/oauth-providers@0.8.2", "", { "peerDependencies": { "hono": ">=3.*" } }, "sha512-xQa9bt6Z/xAMvT+MTHHhXX28nyzqSDZl8LzszM071dIzoEcBx/NwZLnZjPm+7ZiRZb/2E9tiP5GMbBimtYrEHg=="],
 
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.3.12", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-OuLGC46TjB5BbN1dH8JULVVZY4WTdkF7tV9Ys6wLL1rubZnCMstOhNHueU5bLCrnRuDhKPDM4g6sw4Bel5Gzqg=="],
 

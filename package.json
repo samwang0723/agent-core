@@ -3,10 +3,13 @@
   "scripts": {
     "dev": "bun run --hot src/mastra/index.ts",
     "dev:mastra": "mastra dev",
-    "build": "mastra build"
+    "build": "mastra build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.3.22",
+    "@hono/oauth-providers": "^0.8.2",
     "@mastra/core": "^0.10.10",
     "hono": "^4.8.4",
     "zod": "^3.25.73"
@@ -15,6 +18,7 @@
     "@types/bun": "latest",
     "@types/node": "^24.0.10",
     "mastra": "^0.10.10",
+    "prettier": "^3.6.2",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
