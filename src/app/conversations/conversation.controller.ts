@@ -5,6 +5,9 @@ import logger from '../utils/logger';
 import { requireAuth } from '../middleware/auth';
 import { HonoSSEOutput } from './conversation.dto';
 import { optimizedIntentDetection } from '../intents/intent.service';
+import { mastraMemoryService } from '../../mastra/memory/memory.service';
+import { memoryPatterns } from '../../mastra/memory/memory.dto';
+import { messageHistory } from './history.service';
 
 type Env = {
   Variables: {
@@ -13,6 +16,7 @@ type Env = {
 };
 
 const app = new Hono<Env>();
+const memoryContext = mastraMemoryService;
 
 /**
  * @swagger
@@ -89,9 +93,21 @@ app.post('/stream', requireAuth, async c => {
 
       // If an agent is found, stream the response from the agent
       if (result.suitableAgent) {
-        const agentStream = await result.suitableAgent.stream([
-          { role: 'user', content: message },
-        ]);
+        const startTime = Date.now();
+        const agentStream = await result.suitableAgent.stream(
+          [{ role: 'user', content: message }],
+          {
+            resourceId: memoryPatterns.getResourceId(user.id),
+            threadId: memoryPatterns.getThreadId(user.id),
+            maxRetries: 0,
+            maxSteps: 10,
+            maxTokens: 800,
+            onFinish: () => {
+              const duration = Date.now() - startTime;
+              logger.info(`[${user.id}] Agent: Stream took ${duration} ms`);
+            },
+          }
+        );
 
         let accumulated = '';
 
@@ -175,9 +191,20 @@ app.post('/', requireAuth, async c => {
 
   const result = await optimizedIntentDetection(message);
   if (result.suitableAgent) {
-    const response = await result.suitableAgent.generate([
-      { role: 'user', content: message },
-    ]);
+    const startTime = Date.now();
+    const response = await result.suitableAgent.generate(
+      [{ role: 'user', content: message }],
+      {
+        resourceId: memoryPatterns.getResourceId(user.id),
+        threadId: memoryPatterns.getThreadId(user.id),
+        maxRetries: 0,
+        maxSteps: 10,
+        maxTokens: 800,
+      }
+    );
+    const duration = Date.now() - startTime;
+    logger.info(`[${user.id}] Agent: Generate took ${duration} ms`);
+
     return c.json({
       response: response.text,
       userId: user.id,
@@ -220,11 +247,12 @@ app.post('/', requireAuth, async c => {
  */
 app.get('/history', requireAuth, async c => {
   const user = c.get('user');
+  const history = await messageHistory.getHistory(user.id, user.sessionId);
 
   return c.json({
     userId: user.id,
-    messageCount: 0,
-    messages: [],
+    messageCount: history.length,
+    messages: history,
   });
 });
 
@@ -252,7 +280,9 @@ app.get('/history', requireAuth, async c => {
  *       401:
  *         description: Unauthorized - authentication required
  */
-app.post('/init', requireAuth, c => {
+app.post('/init', requireAuth, async c => {
+  const user = c.get('user');
+  await memoryContext.initializeUserMemory(user.id, 'userProfile');
   return c.json({ success: true, message: 'Agent initialized' });
 });
 

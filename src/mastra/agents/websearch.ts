@@ -1,6 +1,7 @@
-import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
 import { toolRegistry } from '../tools/registry';
+import { mastraMemoryService } from '../memory/memory.service';
+import { createModelByKey } from '../models/model.service';
 
 export const webSearchAgent = new Agent({
   name: 'Web Search Agent',
@@ -49,11 +50,12 @@ Before sending any response, verify that you have:
 - Included relevant context and details from reliable sources
 - Provided NO intermediate commentary during tool execution
 - Kept response concise and conversationals`,
-  model: openai('gpt-4o'),
+  model: createModelByKey('gemini-2.5-flash')!,
   tools: {
     webSearchTool: toolRegistry.getServerTool(
       'web-search',
       'brave_web_search'
     )!,
   },
+  memory: mastraMemoryService.getMemory(),
 });
