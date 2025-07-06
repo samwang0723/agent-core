@@ -9,20 +9,14 @@ import {
   ToolCallResult,
 } from './mcp.dto';
 import { JsonSchema } from './mcp.dto';
+import { UserRuntimeContext } from '../../utils/context';
+import { RuntimeContext } from '@mastra/core/di';
 
 export class McpClient {
   private sessionId: string | null = null;
   private availableTools: McpTool[] = [];
-  private accessToken: string | null = null;
 
   constructor(private config: McpServerConfig) {}
-
-  /**
-   * Set the OAuth access token for authenticated requests
-   */
-  setAccessToken(token: string | null): void {
-    this.accessToken = token;
-  }
 
   async initialize(): Promise<void> {
     if (!this.config.enabled) {
@@ -160,23 +154,21 @@ export class McpClient {
   async callTool(
     name: string,
     parameters: Record<string, unknown> | ToolExecutionContext<z.ZodType>,
-    requiresAuth?: boolean
+    requiresAuth?: 'google' | 'whatsapp' | 'github'
   ): Promise<unknown> {
     if (!this.sessionId) {
       throw new Error('MCP session not initialized');
     }
+
+    const googleAuthToken = (
+      parameters.runtimeContext as RuntimeContext<UserRuntimeContext>
+    ).get('googleAuthToken');
 
     // Check if authentication is required
     const needsAuth =
       requiresAuth ||
       this.config.requiresAuth ||
       this.availableTools.find(t => t.name === name)?.requiresAuth;
-
-    if (needsAuth && !this.accessToken) {
-      throw new Error(
-        `Tool '${name}' requires authentication but no access token provided`
-      );
-    }
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -185,8 +177,17 @@ export class McpClient {
     };
 
     // Add authorization header if needed
-    if (needsAuth && this.accessToken) {
-      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    if (needsAuth) {
+      if (needsAuth === 'google' && googleAuthToken) {
+        headers['Authorization'] = `Bearer ${googleAuthToken}`;
+        logger.info(
+          `[${name}] Tool: Authorization header: ${headers['Authorization']}`
+        );
+      } else {
+        throw new Error(
+          `Tool '${name}' requires authentication but no access token provided`
+        );
+      }
     }
 
     // Handle both raw parameters and ToolExecutionContext

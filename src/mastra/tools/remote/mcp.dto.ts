@@ -6,14 +6,14 @@ export interface McpServerConfig {
   url: string;
   healthUrl?: string;
   enabled: boolean;
-  requiresAuth?: boolean; // Whether this MCP server requires authentication
+  requiresAuth?: 'google' | 'whatsapp' | 'github'; // Whether this MCP server requires authentication
 }
 
 export interface McpTool {
   name: string;
   description: string;
   inputSchema: JsonSchema;
-  requiresAuth?: boolean; // Whether this specific tool requires authentication
+  requiresAuth?: 'google' | 'whatsapp' | 'github'; // Whether this specific tool requires authentication
 }
 
 export interface JsonRpcResponse {

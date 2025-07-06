@@ -8,7 +8,6 @@ export const mcpServers: McpServerConfig[] = [
       process.env.RESTAURANT_BOOKING_MCP_HEALTH_URL ||
       'http://127.0.0.1:3001/health',
     enabled: process.env.RESTAURANT_BOOKING_MCP_ENABLED !== 'false',
-    requiresAuth: false,
   },
   {
     name: 'time',
@@ -16,7 +15,6 @@ export const mcpServers: McpServerConfig[] = [
     healthUrl:
       process.env.TIME_MCP_HEALTH_URL || 'http://127.0.0.1:3002/health',
     enabled: process.env.TIME_MCP_ENABLED !== 'false',
-    requiresAuth: false,
   },
   {
     name: 'google-assistant',
@@ -25,7 +23,7 @@ export const mcpServers: McpServerConfig[] = [
       process.env.GOOGLE_ASSISTANT_MCP_HEALTH_URL ||
       'http://127.0.0.1:3003/health',
     enabled: process.env.GOOGLE_ASSISTANT_MCP_ENABLED !== 'false',
-    requiresAuth: true,
+    requiresAuth: 'google',
   },
   {
     name: 'web-search',
@@ -33,7 +31,6 @@ export const mcpServers: McpServerConfig[] = [
     healthUrl:
       process.env.WEB_SEARCH_MCP_HEALTH_URL || 'http://127.0.0.1:3004/health',
     enabled: process.env.WEB_SEARCH_MCP_ENABLED !== 'false',
-    requiresAuth: false,
   },
   {
     name: 'atlassian',
@@ -41,6 +38,5 @@ export const mcpServers: McpServerConfig[] = [
     healthUrl:
       process.env.ALTASIAN_MCP_HEALTH_URL || 'http://127.0.0.1:3005/health',
     enabled: process.env.ALTASIAN_MCP_ENABLED !== 'false',
-    requiresAuth: false,
   },
 ];

@@ -8,6 +8,8 @@ import { optimizedIntentDetection } from '../intents/intent.service';
 import { mastraMemoryService } from '../../mastra/memory/memory.service';
 import { memoryPatterns } from '../../mastra/memory/memory.dto';
 import { messageHistory } from './history.service';
+import { RuntimeContext } from '@mastra/core/runtime-context';
+import { UserRuntimeContext } from '../../mastra/utils/context';
 
 type Env = {
   Variables: {
@@ -78,11 +80,10 @@ app.post('/stream', requireAuth, async c => {
     'X-Client-Datetime header:',
     requestHeaders['x-client-datetime']
   );
-  logger.debug('X-Forwarded-For header:', requestHeaders['x-forwarded-for']);
-  logger.debug('X-Real-IP header:', requestHeaders['x-real-ip']);
   logger.debug('============================');
 
   const result = await optimizedIntentDetection(message);
+  logger.info(`[${user.id}] Agent: Intent Result: `, result);
 
   return streamSSE(c, async stream => {
     // Create SSE output strategy
@@ -94,6 +95,26 @@ app.post('/stream', requireAuth, async c => {
       // If an agent is found, stream the response from the agent
       if (result.suitableAgent) {
         const startTime = Date.now();
+
+        // Brings runtime context to Agent
+        // TODO: Refactor later to Session object
+        const runtimeContext = new RuntimeContext<UserRuntimeContext>();
+        runtimeContext.set('email', user.email);
+        runtimeContext.set(
+          'datetime',
+          (requestHeaders['x-client-datetime'] as string) ||
+            new Date().toISOString()
+        );
+        runtimeContext.set(
+          'timezone',
+          requestHeaders['x-client-timezone'] as string
+        );
+        runtimeContext.set('googleAuthToken', user.accessToken || '');
+
+        logger.info(
+          `[${user.id}] Agent: Runtime context: ${runtimeContext.size()}`
+        );
+
         const agentStream = await result.suitableAgent.stream(
           [{ role: 'user', content: message }],
           {
@@ -106,6 +127,7 @@ app.post('/stream', requireAuth, async c => {
               const duration = Date.now() - startTime;
               logger.info(`[${user.id}] Agent: Stream took ${duration} ms`);
             },
+            runtimeContext,
           }
         );
 
@@ -113,6 +135,12 @@ app.post('/stream', requireAuth, async c => {
 
         // Consume the stream and feed to SSE output
         for await (const chunk of agentStream.textStream) {
+          if (accumulated.length === 0) {
+            const duration = Date.now() - startTime;
+            logger.info(
+              `[${user.id}] Agent: Time to first chunk took ${duration} ms`
+            );
+          }
           accumulated += chunk;
           sseOutput.onChunk(chunk, accumulated);
         }
@@ -254,6 +282,36 @@ app.get('/history', requireAuth, async c => {
     messageCount: history.length,
     messages: history,
   });
+});
+
+/**
+ * @swagger
+ * /api/v1/chat/history:
+ *   delete:
+ *     summary: Clear chat history for authenticated user
+ *     tags: [Chat]
+ *     security:
+ *       - BearerAuth: []
+ *       - CookieAuth: []
+ *     responses:
+ *       200:
+ *         description: History cleared
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 userId:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized - authentication required
+ */
+app.delete('/history', requireAuth, c => {
+  const user = c.get('user');
+  messageHistory.clearHistory(user.id, user.sessionId);
+  return c.json({ message: 'History cleared', userId: user.id });
 });
 
 /**

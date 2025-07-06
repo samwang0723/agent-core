@@ -172,23 +172,6 @@ class ToolRegistry {
   }
 
   /**
-   * Set access token for all MCP clients that require authentication
-   */
-  setAccessTokenForAll(accessToken: string | null): void {
-    this.mcpRegistry.setAccessTokenForAll(accessToken);
-  }
-
-  /**
-   * Set access token for a specific MCP server
-   */
-  setAccessTokenForServer(
-    serverName: string,
-    accessToken: string | null
-  ): void {
-    this.mcpRegistry.setAccessTokenForServer(serverName, accessToken);
-  }
-
-  /**
    * Get MCP client for a specific server (for direct access if needed)
    */
   getClient(serverName: string): McpClient | undefined {

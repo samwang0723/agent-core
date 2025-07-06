@@ -6,7 +6,6 @@ import { createAuthError } from '../utils/api-error';
 import { ErrorCodes } from '../utils/error-code';
 import { SessionService } from '../users/user.service';
 import { UserService } from '../users/user.service';
-import { toolRegistry } from '../../mastra/tools/registry';
 
 export interface Session {
   id: string;
@@ -18,11 +17,6 @@ export interface Session {
   refreshToken?: string;
   tokenExpiryDate?: number;
   createdAt: Date;
-}
-
-// Extend Request interface to include user
-export interface AuthenticatedRequest extends Request {
-  user: Session;
 }
 
 const sessionService = new SessionService();
@@ -160,12 +154,6 @@ export const refreshAccessTokenIfNeeded = async (
     await sessionService.updateSession(token, userSession);
     logger.debug(
       `Session updated with new access token for user ${userSession.id}`
-    );
-
-    // Update agent factory with new access token
-    toolRegistry.setAccessTokenForServer(
-      'google-assistant',
-      userSession.accessToken
     );
   } catch (error) {
     logger.error(
