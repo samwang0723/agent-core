@@ -3,8 +3,8 @@ import { streamSSE } from 'hono/streaming';
 import { Session } from '../middleware/auth';
 import logger from '../utils/logger';
 import { requireAuth } from '../middleware/auth';
-import { intentRouter } from '../../mastra/network/intent';
 import { HonoSSEOutput } from './conversation.dto';
+import { optimizedIntentDetection } from '../intents/intent.service';
 
 type Env = {
   Variables: {
@@ -78,6 +78,8 @@ app.post('/stream', requireAuth, async c => {
   logger.debug('X-Real-IP header:', requestHeaders['x-real-ip']);
   logger.debug('============================');
 
+  const result = await optimizedIntentDetection(message);
+
   return streamSSE(c, async stream => {
     // Create SSE output strategy
     const sseOutput = new HonoSSEOutput(stream, user.id);
@@ -85,17 +87,22 @@ app.post('/stream', requireAuth, async c => {
     try {
       sseOutput.onStart?.({ sessionId: user.id, streaming: true });
 
-      const agentStream = await intentRouter.stream([
-        { role: 'user', content: message },
-      ]);
+      // If an agent is found, stream the response from the agent
+      if (result.suitableAgent) {
+        const agentStream = await result.suitableAgent.stream([
+          { role: 'user', content: message },
+        ]);
 
-      let accumulated = '';
+        let accumulated = '';
 
-      // Consume the stream and feed to SSE output
-      for await (const chunk of agentStream.textStream) {
-        logger.info(`Streaming chunk: ${chunk}`);
-        accumulated += chunk;
-        sseOutput.onChunk(chunk, accumulated);
+        // Consume the stream and feed to SSE output
+        for await (const chunk of agentStream.textStream) {
+          accumulated += chunk;
+          sseOutput.onChunk(chunk, accumulated);
+        }
+      } else {
+        const noAgentResponse = 'No suitable agent found';
+        sseOutput.onChunk(noAgentResponse, noAgentResponse);
       }
 
       sseOutput.onFinish?.({ complete: true, sessionId: user.id });
@@ -166,11 +173,19 @@ app.post('/', requireAuth, async c => {
     requestHeaders[key.toLowerCase()] = value;
   }
 
-  const response = await intentRouter.generate([
-    { role: 'user', content: message },
-  ]);
+  const result = await optimizedIntentDetection(message);
+  if (result.suitableAgent) {
+    const response = await result.suitableAgent.generate([
+      { role: 'user', content: message },
+    ]);
+    return c.json({
+      response: response.text,
+      userId: user.id,
+    });
+  }
+
   return c.json({
-    response: response.text,
+    response: 'No suitable agent found',
     userId: user.id,
   });
 });
@@ -205,12 +220,11 @@ app.post('/', requireAuth, async c => {
  */
 app.get('/history', requireAuth, async c => {
   const user = c.get('user');
-  const history = [];
 
   return c.json({
     userId: user.id,
-    messageCount: history.length,
-    messages: history,
+    messageCount: 0,
+    messages: [],
   });
 });
 
