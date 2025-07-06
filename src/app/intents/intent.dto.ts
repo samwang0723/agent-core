@@ -233,6 +233,54 @@ export const intentPatterns: Record<string, RegExp[]> = {
     /\bjira\s+(?:search|query|filter|board|dashboard)\b/i,
     /\b(?:search|find)\s+(?:jira\s+)?(?:tickets|issues)\b/i,
   ],
+
+  /**
+   * Weather-related intent patterns
+   * Matches expressions for weather queries, forecasts, and weather-related information
+   */
+  weather: [
+    // Direct weather queries
+    /\b(?:what(?:'s|\s+is)|how(?:'s|\s+is)|check)\s+(?:the\s+)?weather\b/i,
+    /\bweather\s+(?:like|today|tomorrow|forecast|report|conditions)\b/i,
+    /\b(?:current|today(?:'s|\s+)|tomorrow(?:'s|\s+))\s+weather\b/i,
+
+    // Weather forecast requests
+    /\b(?:weather\s+)?forecast\s+(?:for|today|tomorrow|this\s+week|next\s+week)\b/i,
+    /\b(?:get|show|tell\s+me)\s+(?:the\s+)?(?:weather\s+)?forecast\b/i,
+    /\b(?:extended|weekly|daily)\s+(?:weather\s+)?forecast\b/i,
+
+    // Temperature queries
+    /\b(?:what(?:'s|\s+is)|how\s+)?(?:the\s+)?temperature\s+(?:today|tomorrow|outside|now)\b/i,
+    /\b(?:how\s+)?(?:hot|cold|warm|cool)\s+(?:is\s+it|will\s+it\s+be)\b/i,
+    /\b(?:current|today(?:'s|\s+)|tomorrow(?:'s|\s+))\s+temperature\b/i,
+
+    // Weather condition queries
+    /\b(?:is\s+it|will\s+it\s+be)\s+(?:raining|snowing|sunny|cloudy|windy)\b/i,
+    /\b(?:rain|snow|sun|cloud|wind)\s+(?:forecast|today|tomorrow|this\s+week)\b/i,
+    /\b(?:chance\s+of|probability\s+of)\s+(?:rain|snow|storms|precipitation)\b/i,
+
+    // Weather alerts and warnings
+    /\b(?:weather\s+)?(?:alert|warning|advisory|watch)\b/i,
+    /\b(?:severe|storm|tornado|hurricane|blizzard)\s+(?:weather|warning|alert)\b/i,
+
+    // Location-specific weather
+    /\bweather\s+(?:in|at|for)\s+(?:[A-Za-z\s]+)\b/i,
+    /\b(?:local|nearby|here)\s+weather\b/i,
+    /\bweather\s+(?:report|conditions|update)\b/i,
+
+    // Weather-related activities
+    /\b(?:should\s+i|do\s+i\s+need)\s+(?:bring|take|wear)\s+(?:an?\s+)?(?:umbrella|jacket|coat)\b/i,
+    /\b(?:good|bad)\s+weather\s+(?:for|to)\b/i,
+    /\bweather\s+(?:suitable|good|bad)\s+for\s+(?:outdoor|activities|sports)\b/i,
+
+    // Air quality and UV index
+    /\b(?:air\s+quality|uv\s+index|humidity|pressure|visibility)\b/i,
+    /\b(?:pollen|allergen|allergy)\s+(?:count|forecast|levels)\b/i,
+
+    // Weather comparison
+    /\b(?:weather\s+)?(?:yesterday|last\s+week|last\s+month)\s+(?:vs|versus|compared\s+to)\b/i,
+    /\b(?:warmer|colder|wetter|drier)\s+than\s+(?:yesterday|usual|average)\b/i,
+  ],
 };
 
 /**
@@ -315,6 +363,40 @@ export const keywordWeights: Record<string, number> = {
   story: 0.6, // Lower because it can be ambiguous
   assignee: 0.7,
   priority: 0.6, // Lower because it can be ambiguous
+
+  // Weather-specific high-confidence keywords (MUST be weather-specific)
+  weather: 0.9,
+  forecast: 0.8,
+  temperature: 0.8,
+  precipitation: 0.7,
+  humidity: 0.7,
+  pressure: 0.6,
+  visibility: 0.6,
+  // Weather conditions
+  sunny: 0.6,
+  cloudy: 0.6,
+  rainy: 0.7,
+  snowy: 0.7,
+  windy: 0.6,
+  stormy: 0.7,
+  // Weather actions
+  umbrella: 0.8, // Strong indicator of weather concern
+  jacket: 0.5, // Lower because it can be fashion-related
+  coat: 0.5, // Lower because it can be fashion-related
+  // Weather alerts
+  alert: 0.5, // Lower because it can be ambiguous
+  warning: 0.5, // Lower because it can be ambiguous
+  advisory: 0.6,
+  // Air quality
+  'air quality': 0.8,
+  'uv index': 0.8,
+  pollen: 0.7,
+  allergen: 0.6,
+  // Weather comparison
+  warmer: 0.6,
+  colder: 0.6,
+  wetter: 0.7,
+  drier: 0.7,
 
   // Removed all generic time-related and action verb keywords that cause false positives
   // Only keeping highly specific action verbs
