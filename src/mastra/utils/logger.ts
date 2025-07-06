@@ -34,6 +34,7 @@ const winstonLogger = winston.createLogger({
   ],
 });
 
+/* eslint-disable  @typescript-eslint/no-explicit-any */
 const logger: IMastraLogger = {
   info: (message: string, ...args: any[]) =>
     winstonLogger.info(message, ...args),

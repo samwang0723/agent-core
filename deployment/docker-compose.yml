@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  db:
+    image: timescale/timescaledb-ha:pg17
+    container_name: timescaledb
+    restart: always
+    command: postgres -c max_connections=100
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: agent-core-main
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_INITDB_ARGS: '--auth-host=md5'
+    ports:
+      - '5432:5432'
+    networks:
+      - agent-network
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d agent-core-main']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  google-assistant:
+    image: mcp/google-assistant:latest
+    environment:
+      - SKIP_SSL_VERIFICATION=true
+    ports:
+      - '3003:3003'
+    networks:
+      - agent-network
+
+  time:
+    image: mcp/time:latest
+    ports:
+      - '3002:3002'
+    networks:
+      - agent-network
+
+  booking:
+    image: mcp/booking:latest
+    ports:
+      - '3001:3001'
+    networks:
+      - agent-network
+
+  web-search:
+    image: mcp/brave:latest
+    ports:
+      - '3004:3004'
+    networks:
+      - agent-network
+
+  atlassian:
+    image: mcp/atlassian:latest
+    ports:
+      - '3005:3005'
+    networks:
+      - agent-network
+
+volumes:
+  db_data:
+
+networks:
+  agent-network:
+    driver: bridge
+    name: agent-network

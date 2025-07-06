@@ -12,6 +12,7 @@ export const startWeatherTool = createTool({
   outputSchema: z.object({
     runId: z.string(),
   }),
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   execute: async ({ context }) => {
     const run = await weatherWorkflowWithSuspend.createRunAsync();
     await run.start({

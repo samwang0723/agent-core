@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { McpRegistry } from './remote/index';
 import { localTools } from './local/index';
 
+/* eslint-disable  @typescript-eslint/no-explicit-any */
 class ToolRegistry {
   private mcpRegistry: McpRegistry;
   private localTools: Record<string, Tool<z.ZodType>> = {};
@@ -133,6 +134,7 @@ class ToolRegistry {
    */
   hasTool(name: string): boolean {
     return (
+      // eslint-disable-next-line no-prototype-builtins
       this.localTools.hasOwnProperty(name) || this.mcpRegistry.hasTool(name)
     );
   }
@@ -142,6 +144,7 @@ class ToolRegistry {
    */
   hasServerTool(serverName: string, toolName: string): boolean {
     if (serverName === 'local') {
+      // eslint-disable-next-line no-prototype-builtins
       return this.localTools.hasOwnProperty(toolName);
     }
     return this.mcpRegistry.hasServerTool(serverName, toolName);

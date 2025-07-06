@@ -1,1 +1,0 @@
-export { googleAuthMiddleware } from './google';

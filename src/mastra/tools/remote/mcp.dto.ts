@@ -47,6 +47,7 @@ export interface JsonSchema {
   enum?: (string | number)[];
 }
 
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 export interface JsonSchemaProperty extends JsonSchema {
   // Additional properties can be added here if needed
 }
@@ -141,6 +142,7 @@ function extractZodTypeInfo(zodType: z.ZodType): JsonSchemaProperty {
 
     // Default fallback
     return { type: 'any', description };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     return {
       type: 'unknown',
