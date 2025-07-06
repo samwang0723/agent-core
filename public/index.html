@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Agent Swarm</title>
+    <title>Agent Core</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
     <style>
@@ -296,6 +296,10 @@
         color: #fa788b;
         font-style: italic;
         font-size: 0.9em;
+      }
+
+      .assistant-message.error-background {
+        background-color: #fbe4e8;
       }
 
       @keyframes pulse {
@@ -904,7 +908,7 @@
     <div class="container">
       <!-- Header with Title and Authentication -->
       <header class="header-section" id="authSection">
-        <h1>Agent Swarm</h1>
+        <h1>Agent Core</h1>
 
         <div class="auth-controls">
           <div id="loginSection">
@@ -1092,8 +1096,8 @@
             document.getElementById('messageInput').disabled = false;
             document.getElementById('sendBtn').disabled = false;
 
-            // Pre-warm the swarm and load history concurrently
-            await Promise.all([initializeSwarm(), loadChatHistory()]);
+            // Pre-warm the Core and load history concurrently
+            await Promise.all([initializeCore(), loadChatHistory()]);
           } else {
             await handleAuthError(response);
           }
@@ -1343,6 +1347,7 @@
           timeDiv.textContent = formatTime();
 
           if (isError) {
+            streamingDiv.classList.add('error-background');
             streamingDiv.innerHTML = `<span class="error-text">${sanitizeHtml(
               content
             )}</span>`;
@@ -1539,21 +1544,21 @@
         }
       }
 
-      async function initializeSwarm() {
+      async function initializeCore() {
         if (!isAuthenticated()) return;
         try {
-          console.log('Pre-warming the agent swarm...');
+          console.log('Pre-warming the agent Core...');
           const response = await apiCall('/api/v1/chat/init', {
             method: 'POST',
           });
 
           if (response.ok) {
-            console.log('Swarm pre-warmed successfully.');
+            console.log('Core pre-warmed successfully.');
           } else {
-            console.warn('Swarm pre-warming failed or was not needed.');
+            console.warn('Core pre-warming failed or was not needed.');
           }
         } catch (error) {
-          console.error('Error during swarm pre-warming:', error);
+          console.error('Error during Core pre-warming:', error);
         }
       }
 
@@ -1680,7 +1685,6 @@
 
               try {
                 const parsedData = JSON.parse(data);
-
                 if (event === 'chunk') {
                   accumulatedText = parsedData.accumulated || '';
                   if (streamingDiv) {

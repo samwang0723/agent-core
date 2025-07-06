@@ -145,16 +145,18 @@ app.post('/stream', requireAuth, async c => {
           sseOutput.onChunk(chunk, accumulated);
         }
       } else {
-        const noAgentResponse = 'No suitable agent found';
-        sseOutput.onChunk(noAgentResponse, noAgentResponse);
+        logger.info(`[${user.id}] Agent: No suitable agent found`);
+        sseOutput.onError('No suitable agent found');
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
-
-      sseOutput.onFinish?.({ complete: true, sessionId: user.id });
     } catch (error) {
       logger.error('Error during streaming chat:', error);
       sseOutput.onError(
         error instanceof Error ? error.message : 'Unknown error occurred'
       );
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } finally {
+      sseOutput.onFinish?.({ complete: true, sessionId: user.id });
     }
   });
 });

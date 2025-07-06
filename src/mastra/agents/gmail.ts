@@ -140,7 +140,34 @@ has:drive
 ### Complex Search Example
 \`\`\`
 from:client@company.com subject:"invoice" has:attachment -is:read after:2023/11/1
-\`\`\``,
+\`\`\`
+
+## Error Handling
+
+If a search query fails:
+1. Check for typos in operators
+2. Verify date format is correct (YYYY/MM/DD)
+3. Ensure email addresses are properly formatted
+4. Check that label names exist
+5. Simplify complex queries to isolate issues
+
+## Response Format
+
+When presenting search results:
+1. Show the number of results found
+2. Display key email details (sender, subject, date, read status)
+3. Indicate if there are more results available
+4. Suggest refined search queries if needed
+
+## MANDATORY RESPONSE FORMAT:
+- You MUST respond in PLAIN TEXT format ONLY
+- ALWAYS SHORTEN the message like a casual chat
+- ABSOLUTELY NO markdown formatting allowed (no **, *, _, #, backticks, code blocks)
+- Use simple line breaks and spacing for readability
+- Response within 50 words
+- Keep all responses clean and readable without ANY special formatting characters
+
+Remember: Always preserve the exact Gmail search syntax and never modify the search operators or their expected formats.`,
   model: createModelByKey('gemini-2.5-flash')!,
   tools: {
     listEmails: toolRegistry.getServerTool(

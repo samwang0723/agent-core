@@ -77,15 +77,6 @@ export class HonoSSEOutput implements OutputStrategy {
     if (this.isClosed) return;
 
     this.safeWrite('error', { error });
-    this.isClosed = true;
-    try {
-      this.stream.close();
-    } catch (error) {
-      logger.error('Error closing SSE stream after error:', {
-        error,
-        sessionId: this.sessionId,
-      });
-    }
   }
 }
 
