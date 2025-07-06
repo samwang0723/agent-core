@@ -19,6 +19,7 @@ class MessageHistory {
       return messages.map(msg => ({
         role: msg.role,
         content: msg.content,
+        timestamp: msg.timestamp,
       })) as Message[];
     } catch (error) {
       logger.error('Failed to get history from Mastra memory', {

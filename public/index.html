@@ -1296,14 +1296,25 @@
         return DOMPurify.sanitize(html);
       }
 
-      function formatTime() {
+      function formatTime(timestamp = null) {
+        if (timestamp) {
+          return new Date(timestamp).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        }
         return new Date().toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
         });
       }
 
-      function addMessage(content, isUser = false, isStreaming = false) {
+      function addMessage(
+        content,
+        isUser = false,
+        isStreaming = false,
+        timestamp = null
+      ) {
         const container = document.getElementById('chatContainer');
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${
@@ -1312,7 +1323,7 @@
 
         const timeDiv = document.createElement('div');
         timeDiv.className = 'message-time';
-        timeDiv.textContent = formatTime();
+        timeDiv.textContent = timestamp ? formatTime(timestamp) : formatTime();
 
         if (isStreaming) {
           messageDiv.id = 'streaming-message';
@@ -1789,7 +1800,7 @@
               if (content === '') {
                 return;
               }
-              addMessage(content, isUser);
+              addMessage(content, isUser, false, msg.timestamp);
             });
             updateStatus('History restored.', 'success');
             // Scroll to bottom to show latest messages
