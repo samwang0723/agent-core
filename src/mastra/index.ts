@@ -4,6 +4,7 @@ import {
   webSearchAgent,
   gcalendarAgent,
   gmailAgent,
+  confluenceAgent,
 } from './agents/index';
 import { weatherWorkflowWithSuspend } from './workflows/weather';
 import logger from './utils/logger';
@@ -35,6 +36,7 @@ export const mastra: Mastra = new Mastra({
     webSearchAgent,
     gcalendarAgent,
     gmailAgent,
+    confluenceAgent,
   },
   workflows: { weatherWorkflowWithSuspend },
   networks: { intentRouter },

@@ -7,6 +7,7 @@ import { weatherAgentWithWorkflow } from '../../mastra/agents/weather';
 import { Agent } from '@mastra/core';
 import { gmailAgent } from '../../mastra/agents/gmail';
 import { gcalendarAgent } from '../../mastra/agents/gcalendar';
+import { confluenceAgent } from '../../mastra/agents/confluence';
 
 // Create a singleton intent detector instance using composite pattern for best accuracy
 const createIntentDetector = (): IToolIntentDetector => {
@@ -44,6 +45,9 @@ export async function optimizedIntentDetection(
         break;
       case 'calendar':
         suitableAgent = gcalendarAgent;
+        break;
+      case 'confluence':
+        suitableAgent = confluenceAgent;
         break;
       default:
         suitableAgent = undefined;
