@@ -6,11 +6,11 @@ import {
   createAgentMemoryConfig,
   validateMemoryConfig,
   mastraConfig,
-  Message,
   ThreadMetadata,
   UserMemorySummary,
 } from './memory.dto';
 import logger from '../utils/logger';
+import { CoreMessage } from '@mastra/core';
 
 // Helper functions removed as they're no longer needed with the new Memory API
 
@@ -37,8 +37,7 @@ import logger from '../utils/logger';
  */
 class MastraMemoryService {
   private memory: Memory;
-  private readonly maxMessagesPerThread = 1000;
-  private readonly retentionDays = 90;
+  private readonly retentionDays = 30;
 
   constructor() {
     this.memory = createMastraMemory();
@@ -63,13 +62,11 @@ class MastraMemoryService {
   /**
    * Get memory configuration for a user and thread
    */
-  private getMemoryConfig(userId: string, threadId: string) {
-    const config = createAgentMemoryConfig(userId, threadId);
+  private getMemoryConfig(userId: string) {
+    const config = createAgentMemoryConfig(userId);
 
     if (!validateMemoryConfig(config)) {
-      throw new Error(
-        `Invalid memory configuration for user ${userId}, thread ${threadId}`
-      );
+      throw new Error(`Invalid memory configuration for user ${userId}`);
     }
 
     return config;
@@ -84,48 +81,26 @@ class MastraMemoryService {
    */
   async getUserMemory(
     userId: string,
-    threadId: string
+    limit: number = 30
   ): Promise<{
-    messages: Message[];
+    messages: CoreMessage[];
     workingMemory?: UserProfileSchema;
   }> {
     try {
       const threadId = memoryPatterns.getThreadId(userId);
-      const { uiMessages } = await this.memory.query({
+      const resourceId = memoryPatterns.getResourceId(userId);
+      const { messages } = await this.memory.query({
         threadId,
+        resourceId,
         selectBy: {
-          last: 50,
+          last: limit,
         },
       });
-      const mappedMessages = uiMessages
-        .map(msg => {
-          const role = msg.role;
-          if (role === 'user' || role === 'assistant') {
-            return {
-              role: role,
-              content: msg.content,
-              timestamp: msg.createdAt,
-            };
-          }
-          if (role === 'data') {
-            return {
-              role: 'tool' as const,
-              content: msg.content,
-              timestamp: msg.createdAt,
-            };
-          }
-          return null;
-        })
-        .filter((m): m is NonNullable<typeof m> => m !== null);
-
-      return {
-        messages: mappedMessages,
-      };
+      return { messages };
     } catch (error) {
       logger.error('Failed to get user memory', {
         error,
         userId,
-        threadId,
       });
       return { messages: [] };
     }
@@ -139,7 +114,6 @@ class MastraMemoryService {
   async saveMessage(
     role: 'user' | 'assistant',
     userId: string,
-    threadId: string,
     message: string
   ): Promise<void> {
     try {
@@ -177,8 +151,7 @@ class MastraMemoryService {
       logger.error('Failed to save user message', {
         error,
         userId,
-        threadId,
-        message: safePreview(message, 50).preview,
+        message: safePreview(message, 10).preview,
       });
       throw error;
     }
@@ -211,7 +184,7 @@ class MastraMemoryService {
   /**
    * Clear memory for a specific user thread
    */
-  async clearUserMemory(userId: string, threadId: string): Promise<void> {
+  async clearUserMemory(userId: string): Promise<void> {
     try {
       const threadId = memoryPatterns.getThreadId(userId);
       // Clear working memory for this thread
@@ -222,7 +195,6 @@ class MastraMemoryService {
       logger.error('Failed to clear user memory', {
         error,
         userId,
-        threadId,
       });
       throw error;
     }
@@ -255,21 +227,19 @@ class MastraMemoryService {
   /**
    * Get user working memory
    */
-  async getWorkingMemory(
-    userId: string,
-    threadId: string
-  ): Promise<UserProfileSchema | null> {
+  async getWorkingMemory(userId: string): Promise<UserProfileSchema | null> {
     try {
-      const config = this.getMemoryConfig(userId, threadId);
+      const threadId = memoryPatterns.getThreadId(userId);
+      const resourceId = memoryPatterns.getResourceId(userId);
 
       const workingMemory = await this.memory.getWorkingMemory({
-        threadId: config.thread,
-        resourceId: config.resource,
+        threadId,
+        resourceId,
       });
 
       return (workingMemory as UserProfileSchema) || null;
     } catch (error) {
-      logger.error('Failed to get working memory', { error, userId, threadId });
+      logger.error('Failed to get working memory', { error, userId });
       return null;
     }
   }
@@ -288,8 +258,7 @@ class MastraMemoryService {
       | 'technicalContext' = 'userProfile'
   ): Promise<void> {
     try {
-      const threadId = `init-${Date.now()}`;
-      const config = this.getMemoryConfig(userId, threadId);
+      const config = this.getMemoryConfig(userId);
 
       // Check if working memory already exists
       const existing = await this.memory.getWorkingMemory({
@@ -320,7 +289,6 @@ class MastraMemoryService {
         {
           userId,
           template,
-          threadId,
         }
       );
     } catch (error) {
@@ -338,8 +306,7 @@ class MastraMemoryService {
   async getUserMemorySummary(userId: string): Promise<UserMemorySummary> {
     try {
       const threads = await this.getUserThreads(userId);
-      const threadId = threads[0]?.threadId || `summary-${Date.now()}`;
-      const workingMemory = await this.getWorkingMemory(userId, threadId);
+      const workingMemory = await this.getWorkingMemory(userId);
 
       const totalMessages = threads.reduce(
         (sum, thread) => sum + thread.messageCount,

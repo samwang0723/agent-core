@@ -8,8 +8,7 @@ import { optimizedIntentDetection } from '../intents/intent.service';
 import { mastraMemoryService } from '../../mastra/memory/memory.service';
 import { memoryPatterns } from '../../mastra/memory/memory.dto';
 import { messageHistory } from './history.service';
-import { RuntimeContext } from '@mastra/core/runtime-context';
-import { UserRuntimeContext } from '../../mastra/utils/context';
+import { generateRequestMessages } from './conversation.service';
 
 type Env = {
   Variables: {
@@ -59,83 +58,38 @@ app.post('/stream', requireAuth, async c => {
   const user = c.get('user');
   const { message } = await c.req.json();
 
-  if (!message || typeof message !== 'string') {
-    return c.json({ error: 'Message is required and must be a string' }, 400);
-  }
-
-  // Extract request headers for timezone detection
-  const requestHeaders: Record<string, string | string[] | undefined> = {};
-  for (const [key, value] of Object.entries(c.req.header())) {
-    requestHeaders[key.toLowerCase()] = value;
-  }
-
-  // Debug logging to see what headers we're receiving
-  logger.debug('=== REQUEST HEADERS DEBUG ===');
-  logger.debug('All headers:', JSON.stringify(requestHeaders, null, 2));
-  logger.debug(
-    'X-Client-Timezone header:',
-    requestHeaders['x-client-timezone']
-  );
-  logger.debug(
-    'X-Client-Datetime header:',
-    requestHeaders['x-client-datetime']
-  );
-  logger.debug('============================');
-
-  const result = await optimizedIntentDetection(message);
-  logger.info(`[${user.id}] Agent: Intent Result: `, result);
-
   return streamSSE(c, async stream => {
-    // Create SSE output strategy
     const sseOutput = new HonoSSEOutput(stream, user.id);
-
     try {
       sseOutput.onStart?.({ sessionId: user.id, streaming: true });
+
+      if (!message || typeof message !== 'string') {
+        throw new Error('Message is required and must be a string');
+      }
+
+      const result = await optimizedIntentDetection(message);
+      logger.info(`[${user.id}] Agent: Intent Result: `, result);
 
       // If an agent is found, stream the response from the agent
       if (result.suitableAgent) {
         const startTime = Date.now();
-
-        // Brings runtime context to Agent
-        const runtimeContext = new RuntimeContext<UserRuntimeContext>();
-        runtimeContext.set('email', user.email);
-        runtimeContext.set(
-          'datetime',
-          (requestHeaders['x-client-datetime'] as string) ||
-            new Date().toISOString()
+        const { runtimeContext, messages } = await generateRequestMessages(
+          user,
+          c,
+          message
         );
-        runtimeContext.set(
-          'timezone',
-          requestHeaders['x-client-timezone'] as string
-        );
-        runtimeContext.set('googleAuthToken', user.accessToken || '');
-
-        const currentDateTimePlusTimezoneInfo = `[Context: Current date and time in ${requestHeaders['x-client-timezone']} timezone: ${new Date().toLocaleString(
-          'en-US',
-          {
-            timeZone: requestHeaders['x-client-timezone'] as string,
-          }
-        )}]`;
-        const agentStream = await result.suitableAgent.stream(
-          [
-            {
-              role: 'user',
-              content: `${currentDateTimePlusTimezoneInfo} \n\n ${message}`,
-            },
-          ],
-          {
-            resourceId: memoryPatterns.getResourceId(user.id),
-            threadId: memoryPatterns.getThreadId(user.id),
-            maxRetries: 1,
-            maxSteps: 10,
-            maxTokens: 800,
-            onFinish: () => {
-              const duration = Date.now() - startTime;
-              logger.info(`[${user.id}] Agent: Stream took ${duration} ms`);
-            },
-            runtimeContext,
-          }
-        );
+        const agentStream = await result.suitableAgent.stream(messages, {
+          resourceId: memoryPatterns.getResourceId(user.id),
+          threadId: memoryPatterns.getThreadId(user.id),
+          maxRetries: 1,
+          maxSteps: 10,
+          maxTokens: 800,
+          onFinish: () => {
+            const duration = Date.now() - startTime;
+            logger.info(`[${user.id}] Agent: Stream took ${duration} ms`);
+          },
+          runtimeContext,
+        });
 
         let accumulated = '';
 
@@ -151,9 +105,7 @@ app.post('/stream', requireAuth, async c => {
           sseOutput.onChunk(chunk, accumulated);
         }
       } else {
-        logger.info(`[${user.id}] Agent: No suitable agent found`);
-        sseOutput.onError('No suitable agent found');
-        await new Promise(resolve => setTimeout(resolve, 500));
+        throw new Error('No suitable agent found');
       }
     } catch (error) {
       logger.error('Error during streaming chat:', error);
@@ -219,52 +171,23 @@ app.post('/', requireAuth, async c => {
     return c.json({ error: 'Message is required and must be a string' }, 400);
   }
 
-  // Extract request headers for timezone detection
-  const requestHeaders: Record<string, string | string[] | undefined> = {};
-  for (const [key, value] of Object.entries(c.req.header())) {
-    requestHeaders[key.toLowerCase()] = value;
-  }
-
   const result = await optimizedIntentDetection(message);
   if (result.suitableAgent) {
     const startTime = Date.now();
-
-    // Brings runtime context to Agent
-    const runtimeContext = new RuntimeContext<UserRuntimeContext>();
-    runtimeContext.set('email', user.email);
-    runtimeContext.set(
-      'datetime',
-      (requestHeaders['x-client-datetime'] as string) ||
-        new Date().toISOString()
+    const { runtimeContext, messages } = await generateRequestMessages(
+      user,
+      c,
+      message
     );
-    runtimeContext.set(
-      'timezone',
-      requestHeaders['x-client-timezone'] as string
-    );
-    runtimeContext.set('googleAuthToken', user.accessToken || '');
 
-    const currentDateTimePlusTimezoneInfo = `[Context: Current date and time in ${requestHeaders['x-client-timezone']} timezone: ${new Date().toLocaleString(
-      'en-US',
-      {
-        timeZone: requestHeaders['x-client-timezone'] as string,
-      }
-    )}]`;
-
-    const response = await result.suitableAgent.generate(
-      [
-        {
-          role: 'user',
-          content: `${currentDateTimePlusTimezoneInfo} \n\n ${message}`,
-        },
-      ],
-      {
-        resourceId: memoryPatterns.getResourceId(user.id),
-        threadId: memoryPatterns.getThreadId(user.id),
-        maxRetries: 0,
-        maxSteps: 10,
-        maxTokens: 800,
-      }
-    );
+    const response = await result.suitableAgent.generate(messages, {
+      resourceId: memoryPatterns.getResourceId(user.id),
+      threadId: memoryPatterns.getThreadId(user.id),
+      maxRetries: 0,
+      maxSteps: 10,
+      maxTokens: 800,
+      runtimeContext,
+    });
     const duration = Date.now() - startTime;
     logger.info(`[${user.id}] Agent: Generate took ${duration} ms`);
 
@@ -310,7 +233,7 @@ app.post('/', requireAuth, async c => {
  */
 app.get('/history', requireAuth, async c => {
   const user = c.get('user');
-  const history = await messageHistory.getHistory(user.id, user.sessionId);
+  const history = await messageHistory.getHistory(user.id, 10);
 
   return c.json({
     userId: user.id,
@@ -345,7 +268,7 @@ app.get('/history', requireAuth, async c => {
  */
 app.delete('/history', requireAuth, c => {
   const user = c.get('user');
-  messageHistory.clearHistory(user.id, user.sessionId);
+  messageHistory.clearHistory(user.id);
   return c.json({ message: 'History cleared', userId: user.id });
 });
 
@@ -353,14 +276,14 @@ app.delete('/history', requireAuth, c => {
  * @swagger
  * /api/v1/chat/init:
  *   post:
- *     summary: Initialize the chat swarm for the user session
+ *     summary: Initialize the chat memory for the user session
  *     tags: [Chat]
  *     security:
  *       - BearerAuth: []
  *       - CookieAuth: []
  *     responses:
  *       200:
- *         description: Swarm initialized successfully
+ *         description: Memory initialized successfully
  *         content:
  *           application/json:
  *             schema:

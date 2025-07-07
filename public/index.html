@@ -1800,7 +1800,7 @@
               if (content === '') {
                 return;
               }
-              addMessage(content, isUser, false, msg.timestamp);
+              addMessage(content, isUser, false, msg.createdAt);
             });
             updateStatus('History restored.', 'success');
             // Scroll to bottom to show latest messages

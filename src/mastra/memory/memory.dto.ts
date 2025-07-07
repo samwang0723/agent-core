@@ -289,10 +289,10 @@ export interface MastraMemoryConfig {
 }
 
 // Helper function to create agent memory configuration for use in agent creation
-export const createAgentMemoryConfig = (userId: string, sessionId: string) => {
+export const createAgentMemoryConfig = (userId: string) => {
   return {
     resource: `user:${userId}`,
-    thread: `session:${sessionId}`,
+    thread: `session:${userId}`,
     userId,
   };
 };
@@ -310,15 +310,6 @@ export const validateMemoryConfig = (config: MastraMemoryConfig): boolean => {
     return false;
   }
 };
-
-// Message interface based on the existing conversation structure
-export interface Message {
-  role: 'user' | 'assistant' | 'tool';
-  content: string | Array<{ type: 'text'; text: string }>;
-  toolCallId?: string;
-  toolName?: string;
-  timestamp?: Date;
-}
 
 // Thread metadata interface
 export interface ThreadMetadata {
