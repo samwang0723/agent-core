@@ -8,7 +8,7 @@ import { optimizedIntentDetection } from '../intents/intent.service';
 import { mastraMemoryService } from '../../mastra/memory/memory.service';
 import { memoryPatterns } from '../../mastra/memory/memory.dto';
 import { messageHistory } from './history.service';
-import { generateRequestMessages } from './conversation.service';
+import { generateRequestContext } from './conversation.service';
 
 type Env = {
   Variables: {
@@ -73,12 +73,11 @@ app.post('/stream', requireAuth, async c => {
       // If an agent is found, stream the response from the agent
       if (result.suitableAgent) {
         const startTime = Date.now();
-        const { runtimeContext, messages } = await generateRequestMessages(
+        const { runtimeContext, contextMessage } = await generateRequestContext(
           user,
-          c,
-          message
+          c
         );
-        const agentStream = await result.suitableAgent.stream(messages, {
+        const agentStream = await result.suitableAgent.stream(message, {
           resourceId: memoryPatterns.getResourceId(user.id),
           threadId: memoryPatterns.getThreadId(user.id),
           maxRetries: 1,
@@ -89,6 +88,7 @@ app.post('/stream', requireAuth, async c => {
             logger.info(`[${user.id}] Agent: Stream took ${duration} ms`);
           },
           runtimeContext,
+          context: [contextMessage],
         });
 
         let accumulated = '';
@@ -174,19 +174,19 @@ app.post('/', requireAuth, async c => {
   const result = await optimizedIntentDetection(message);
   if (result.suitableAgent) {
     const startTime = Date.now();
-    const { runtimeContext, messages } = await generateRequestMessages(
+    const { runtimeContext, contextMessage } = await generateRequestContext(
       user,
-      c,
-      message
+      c
     );
 
-    const response = await result.suitableAgent.generate(messages, {
+    const response = await result.suitableAgent.generate(message, {
       resourceId: memoryPatterns.getResourceId(user.id),
       threadId: memoryPatterns.getThreadId(user.id),
       maxRetries: 0,
       maxSteps: 10,
       maxTokens: 800,
       runtimeContext,
+      context: [contextMessage],
     });
     const duration = Date.now() - startTime;
     logger.info(`[${user.id}] Agent: Generate took ${duration} ms`);

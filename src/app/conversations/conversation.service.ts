@@ -4,13 +4,12 @@ import { UserRuntimeContext } from '../../mastra/utils/context';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import { CoreMessage } from '@mastra/core';
 
-export async function generateRequestMessages(
+export async function generateRequestContext(
   session: Session,
-  context: Context,
-  message: string
+  context: Context
 ): Promise<{
   runtimeContext: RuntimeContext<UserRuntimeContext>;
-  messages: CoreMessage[];
+  contextMessage: CoreMessage;
 }> {
   // Extract request headers for timezone detection
   const requestHeaders: Record<string, string | string[] | undefined> = {};
@@ -21,28 +20,22 @@ export async function generateRequestMessages(
   // Brings runtime context to Agent
   const runtimeContext = new RuntimeContext<UserRuntimeContext>();
   runtimeContext.set('email', session.email);
-  runtimeContext.set(
-    'datetime',
-    (requestHeaders['x-client-datetime'] as string) || new Date().toISOString()
-  );
   runtimeContext.set('timezone', requestHeaders['x-client-timezone'] as string);
   runtimeContext.set('googleAuthToken', session.accessToken || '');
 
   // Brings time context to Agent
-  const currentDateTimePlusTimezoneInfo = `[Context: Current date and time in ${requestHeaders['x-client-timezone']} timezone: ${new Date().toLocaleString(
+  const contextMessage = `[Context: Current date and time in ${requestHeaders['x-client-timezone']} timezone: ${new Date().toLocaleString(
     'en-US',
     {
       timeZone: requestHeaders['x-client-timezone'] as string,
     }
-  )}]`;
+  )}. User name: ${session.name}.]`;
 
   return {
     runtimeContext,
-    messages: [
-      {
-        role: 'user',
-        content: `${currentDateTimePlusTimezoneInfo} \n\n ${message}`,
-      },
-    ],
+    contextMessage: {
+      role: 'system',
+      content: `${contextMessage}`,
+    },
   };
 }
