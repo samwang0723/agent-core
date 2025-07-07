@@ -3,8 +3,6 @@ import { Session } from '../middleware/auth';
 import { UserRuntimeContext } from '../../mastra/utils/context';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import { CoreMessage } from '@mastra/core';
-import { messageHistory } from './history.service';
-import logger from '../utils/logger';
 
 export async function generateRequestMessages(
   session: Session,
@@ -38,14 +36,9 @@ export async function generateRequestMessages(
     }
   )}]`;
 
-  const history = await messageHistory.getHistory(session.id, 10);
-
-  logger.info(`[${session.id}] History: `, history);
-
   return {
     runtimeContext,
     messages: [
-      ...history,
       {
         role: 'user',
         content: `${currentDateTimePlusTimezoneInfo} \n\n ${message}`,
