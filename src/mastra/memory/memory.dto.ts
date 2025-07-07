@@ -2,6 +2,8 @@ import { Memory } from '@mastra/memory';
 import { PostgresStore } from '@mastra/pg';
 import { z } from 'zod';
 import logger from '../utils/logger';
+import { MemoryProcessor } from '@mastra/core';
+import { TokenLimiter, ToolCallFilter } from '@mastra/memory/processors';
 
 // User profile schema for structured working memory
 const userProfileSchema = z.object({
@@ -131,6 +133,7 @@ export const createMastraMemory = () => {
         //   scope: 'resource' | 'thread';
         // };
       };
+      processors: MemoryProcessor[];
     } = {
       options: {
         lastMessages: 10,
@@ -145,6 +148,11 @@ export const createMastraMemory = () => {
         //   scope: 'resource', // Search across all threads for this user
         // },
       },
+      processors: [
+        // Ensure the total tokens from memory don't exceed ~127k
+        new TokenLimiter(127000),
+        new ToolCallFilter(),
+      ],
     };
 
     // Add PostgreSQL storage if available

@@ -2,12 +2,16 @@ import { CompositeIntentDetector } from './methods/composite';
 import { KeywordIntentDetector } from './methods/keyword';
 import { PatternIntentDetector } from './methods/pattern';
 import { IToolIntentDetector, ToolIntentResult } from './intent.dto';
-import { webSearchAgent } from '../../mastra/agents/websearch';
-import { weatherAgentWithWorkflow } from '../../mastra/agents/weather';
 import { Agent } from '@mastra/core';
-import { gmailAgent } from '../../mastra/agents/gmail';
-import { gcalendarAgent } from '../../mastra/agents/gcalendar';
-import { confluenceAgent } from '../../mastra/agents/confluence';
+import {
+  gmailAgent,
+  gcalendarAgent,
+  confluenceAgent,
+  jiraAgent,
+  webSearchAgent,
+  weatherAgentWithWorkflow,
+  restaurantAgent,
+} from '../../mastra/agents/index';
 
 // Create a singleton intent detector instance using composite pattern for best accuracy
 const createIntentDetector = (): IToolIntentDetector => {
@@ -48,6 +52,12 @@ export async function optimizedIntentDetection(
         break;
       case 'confluence':
         suitableAgent = confluenceAgent;
+        break;
+      case 'jira':
+        suitableAgent = jiraAgent;
+        break;
+      case 'restaurant':
+        suitableAgent = restaurantAgent;
         break;
       default:
         suitableAgent = undefined;

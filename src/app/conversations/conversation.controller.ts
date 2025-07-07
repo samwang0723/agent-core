@@ -97,7 +97,6 @@ app.post('/stream', requireAuth, async c => {
         const startTime = Date.now();
 
         // Brings runtime context to Agent
-        // TODO: Refactor later to Session object
         const runtimeContext = new RuntimeContext<UserRuntimeContext>();
         runtimeContext.set('email', user.email);
         runtimeContext.set(
@@ -111,19 +110,23 @@ app.post('/stream', requireAuth, async c => {
         );
         runtimeContext.set('googleAuthToken', user.accessToken || '');
 
-        logger.info(
-          `[${user.id}] Agent: Runtime context: ${runtimeContext.size()}`
-        );
-        logger.info(
-          `[${user.id}] Agent: Runtime context: ${runtimeContext.get('googleAuthToken')}`
-        );
-
+        const currentDateTimePlusTimezoneInfo = `[Context: Current date and time in ${requestHeaders['x-client-timezone']} timezone: ${new Date().toLocaleString(
+          'en-US',
+          {
+            timeZone: requestHeaders['x-client-timezone'] as string,
+          }
+        )}]`;
         const agentStream = await result.suitableAgent.stream(
-          [{ role: 'user', content: message }],
+          [
+            {
+              role: 'user',
+              content: `${currentDateTimePlusTimezoneInfo} \n\n ${message}`,
+            },
+          ],
           {
             resourceId: memoryPatterns.getResourceId(user.id),
             threadId: memoryPatterns.getThreadId(user.id),
-            maxRetries: 0,
+            maxRetries: 1,
             maxSteps: 10,
             maxTokens: 800,
             onFinish: () => {
@@ -225,8 +228,35 @@ app.post('/', requireAuth, async c => {
   const result = await optimizedIntentDetection(message);
   if (result.suitableAgent) {
     const startTime = Date.now();
+
+    // Brings runtime context to Agent
+    const runtimeContext = new RuntimeContext<UserRuntimeContext>();
+    runtimeContext.set('email', user.email);
+    runtimeContext.set(
+      'datetime',
+      (requestHeaders['x-client-datetime'] as string) ||
+        new Date().toISOString()
+    );
+    runtimeContext.set(
+      'timezone',
+      requestHeaders['x-client-timezone'] as string
+    );
+    runtimeContext.set('googleAuthToken', user.accessToken || '');
+
+    const currentDateTimePlusTimezoneInfo = `[Context: Current date and time in ${requestHeaders['x-client-timezone']} timezone: ${new Date().toLocaleString(
+      'en-US',
+      {
+        timeZone: requestHeaders['x-client-timezone'] as string,
+      }
+    )}]`;
+
     const response = await result.suitableAgent.generate(
-      [{ role: 'user', content: message }],
+      [
+        {
+          role: 'user',
+          content: `${currentDateTimePlusTimezoneInfo} \n\n ${message}`,
+        },
+      ],
       {
         resourceId: memoryPatterns.getResourceId(user.id),
         threadId: memoryPatterns.getThreadId(user.id),

@@ -17,7 +17,7 @@ Your primary function is to help users get weather details for specific location
 Use the startWeatherTool to start the weather workflow. This will start and then suspend the workflow and return a runId.
 Use the resumeWeatherTool to resume the weather workflow. This takes the runId returned from the startWeatherTool and the city entered by the user. It will resume the workflow and return the result.
 The result will be the weather forecast for the city.`,
-  model: createModelByKey('gemini-2.5-flash')!,
+  model: createModelByKey('claude-3-5-haiku')!,
   tools: {
     startWeatherTool: toolRegistry.getTool('start-weather-tool')!,
     resumeWeatherTool: toolRegistry.getTool('resume-weather-tool')!,
