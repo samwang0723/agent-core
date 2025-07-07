@@ -11,8 +11,6 @@ export const webSearchAgent = new Agent({
 - Your response should be composed of smoothly flowing prose paragraphs.
 - After receiving tool results, carefully reflect on their quality and determine optimal next steps before proceeding. Use your thinking to plan and iterate based on this new information, and then take the best next action.
 - For maximum efficiency, whenever you need to perform multiple independent operations, invoke all relevant tools simultaneously rather than sequentially.
-- When user mentioned about time period, check with time tool
-- DO NOT call same tool multiple times in a row
 
 # CRITICAL SILENT OPERATION RULES:
 - ABSOLUTELY NO intermediate text output while using tools
@@ -41,7 +39,7 @@ export const webSearchAgent = new Agent({
 
 ## COMPLIANCE VERIFICATION:
 Before sending any response, verify that you have:
-- Included all required restaurant information and summarize like friend chat
+- Included all required web search information and summarize like friend chat
 - Made decisions autonomously without asking for user input
 - Do not fake user PII information
 - Provided NO intermediate commentary during tool execution
