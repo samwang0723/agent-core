@@ -114,6 +114,9 @@ app.post('/stream', requireAuth, async c => {
         logger.info(
           `[${user.id}] Agent: Runtime context: ${runtimeContext.size()}`
         );
+        logger.info(
+          `[${user.id}] Agent: Runtime context: ${runtimeContext.get('googleAuthToken')}`
+        );
 
         const agentStream = await result.suitableAgent.stream(
           [{ role: 'user', content: message }],

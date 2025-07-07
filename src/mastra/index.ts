@@ -1,5 +1,10 @@
 import { Mastra } from '@mastra/core';
-import { weatherAgentWithWorkflow, webSearchAgent } from './agents/index';
+import {
+  weatherAgentWithWorkflow,
+  webSearchAgent,
+  gcalendarAgent,
+  gmailAgent,
+} from './agents/index';
 import { weatherWorkflowWithSuspend } from './workflows/weather';
 import logger from './utils/logger';
 import { intentRouter } from './network/intent';
@@ -25,7 +30,12 @@ export const mastra: Mastra = new Mastra({
       maxAge: 86400,
     },
   },
-  agents: { weatherAgentWithWorkflow, webSearchAgent },
+  agents: {
+    weatherAgentWithWorkflow,
+    webSearchAgent,
+    gcalendarAgent,
+    gmailAgent,
+  },
   workflows: { weatherWorkflowWithSuspend },
   networks: { intentRouter },
 });
