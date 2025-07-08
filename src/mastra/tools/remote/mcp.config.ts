@@ -39,4 +39,11 @@ export const mcpServers: McpServerConfig[] = [
       process.env.ALTASIAN_MCP_HEALTH_URL || 'http://127.0.0.1:3005/health',
     enabled: process.env.ALTASIAN_MCP_ENABLED !== 'false',
   },
+  {
+    name: 'reddit',
+    url: process.env.REDDIT_MCP_URL || 'http://127.0.0.1:3006/mcp',
+    healthUrl:
+      process.env.REDDIT_MCP_HEALTH_URL || 'http://127.0.0.1:3006/health',
+    enabled: process.env.REDDIT_MCP_ENABLED !== 'false',
+  },
 ];

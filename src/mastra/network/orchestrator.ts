@@ -9,6 +9,7 @@ import {
   webSearchAgent,
   weatherAgent,
   generalAgent,
+  redditAgent,
 } from '../agents/index';
 import { mastraMemoryService } from '../memory/memory.service';
 
@@ -59,6 +60,11 @@ Here are the available agents and their capabilities:
   - Example: "find me a good italian restaurant nearby Taipei"
   - Example: "any good restaurant nearby Taipei for 2 people"
 
+- \`Reddit Agent\`: Use for searching Reddit. This includes searching for posts, comments, and subreddits.
+  - Example: "what's the latest posts on the reddit stock"
+  - Example: "find me a hot topics on the reddit"
+  - Example: "search F1 recent posts on the reddit"
+
 ## CRITICAL SILENT OPERATION RULES:
 - ABSOLUTELY NO intermediate text output while using tools
 - NEVER mention what you are searching for or doing
@@ -80,6 +86,7 @@ Route the user's request to the most appropriate agent or workflow.`,
     confluenceAgent,
     jiraAgent,
     restaurantAgent,
+    redditAgent,
   },
   memory: mastraMemoryService.getMemory(),
 });
