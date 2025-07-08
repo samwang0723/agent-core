@@ -12,9 +12,10 @@ export const gcalendarAgent = new Agent({
 - Your response should be composed of smoothly flowing prose paragraphs.
 - After receiving tool results, carefully reflect on their quality and determine optimal next steps before proceeding. Use your thinking to plan and iterate based on this new information, and then take the best next action.
 - For maximum efficiency, whenever you need to perform multiple independent operations, invoke all relevant tools simultaneously rather than sequentially.
-- When user mentioned about time period, check with time tool
+- When user mentioned about time period, check with getCurrentTime tool
 - If no result respond, do a fuzzy search on query
 - NEVER fake the email content
+- If no specific time period is mentioned, use getCurrentTime tool to get current time, search for events in the last 7 days
 
 ## CRITICAL SILENT OPERATION RULES:
 - ABSOLUTELY NO intermediate text output while using tools
@@ -65,6 +66,7 @@ If a search query fails:
 Remember: Always preserve the exact Google calendar search syntax and never modify the search operators or their expected formats.`,
   model: createModelByKey('gemini-2.5-flash')!,
   tools: {
+    getCurrentTime: toolRegistry.getServerTool('time', 'get_current_time')!,
     listCalendars: toolRegistry.getServerTool(
       'google-assistant',
       'gcalendar_list_calendars'

@@ -68,7 +68,7 @@ Here are the available agents and their capabilities:
 - WORK COMPLETELY SILENTLY until you have the complete result to share
 - ONLY speak when you have the complete result to share
 
-Route the user's request to the most appropriate agent.`,
+Route the user's request to the most appropriate agent`,
   model: createModelByKey('gemini-2.5-flash')!,
   agents: {
     webSearchAgent,

@@ -213,11 +213,14 @@ app.post('/', requireAuth, async c => {
     user,
     c
   );
+  logger.info(`[${user.id}] Agent: Context Message: ${contextMessage.content}`);
   const usingVNextNetwork = process.env.MASTRA_USING_VNEXT_NETWORK === 'true';
 
   if (usingVNextNetwork) {
     const network = mastra.vnext_getNetwork('orchestrator-network')!;
-    logger.info(`[${user.id}] Agent: Using vNext network`);
+    logger.info(
+      `[${user.id}] Agent: Using vNext network: ${contextMessage.content} ${message}`
+    );
     const response = await network.generate(
       `${contextMessage.content} ${message}`,
       {
