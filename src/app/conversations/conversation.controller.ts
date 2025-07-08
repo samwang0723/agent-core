@@ -208,30 +208,51 @@ app.post('/', requireAuth, async c => {
     return c.json({ error: 'Message is required and must be a string' }, 400);
   }
 
-  const result = await optimizedIntentDetection(message);
-  if (result.suitableAgent) {
-    const startTime = Date.now();
-    const { runtimeContext, contextMessage } = await generateRequestContext(
-      user,
-      c
-    );
+  const startTime = Date.now();
+  const { runtimeContext, contextMessage } = await generateRequestContext(
+    user,
+    c
+  );
+  const usingVNextNetwork = process.env.MASTRA_USING_VNEXT_NETWORK === 'true';
 
-    const response = await result.suitableAgent.generate(message, {
-      resourceId: memoryPatterns.getResourceId(user.id),
-      threadId: memoryPatterns.getThreadId(user.id),
-      maxRetries: 0,
-      maxSteps: 10,
-      maxTokens: 800,
-      runtimeContext,
-      context: [contextMessage],
-    });
+  if (usingVNextNetwork) {
+    const network = mastra.vnext_getNetwork('orchestrator-network')!;
+    logger.info(`[${user.id}] Agent: Using vNext network`);
+    const response = await network.generate(
+      `${contextMessage.content} ${message}`,
+      {
+        resourceId: memoryPatterns.getResourceId(user.id),
+        threadId: memoryPatterns.getThreadId(user.id),
+        runtimeContext,
+      }
+    );
     const duration = Date.now() - startTime;
-    logger.info(`[${user.id}] Agent: Generate took ${duration} ms`);
+    logger.info(`[${user.id}] Agent: vNext generate took ${duration} ms`);
 
     return c.json({
-      response: response.text,
+      response: response.result,
       userId: user.id,
     });
+  } else {
+    const result = await optimizedIntentDetection(message);
+    if (result.suitableAgent) {
+      const response = await result.suitableAgent.generate(message, {
+        resourceId: memoryPatterns.getResourceId(user.id),
+        threadId: memoryPatterns.getThreadId(user.id),
+        maxRetries: 0,
+        maxSteps: 10,
+        maxTokens: 800,
+        runtimeContext,
+        context: [contextMessage],
+      });
+      const duration = Date.now() - startTime;
+      logger.info(`[${user.id}] Agent: Generate took ${duration} ms`);
+
+      return c.json({
+        response: response.text,
+        userId: user.id,
+      });
+    }
   }
 
   return c.json({
