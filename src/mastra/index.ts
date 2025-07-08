@@ -10,7 +10,7 @@ import {
 } from './agents/index';
 import { weatherWorkflowWithSuspend } from './workflows/weather';
 import logger from './utils/logger';
-import { intentRouter } from './network/intent';
+import { orchestratorNetwork } from './network/orchestrator';
 
 export const mastra: Mastra = new Mastra({
   logger: logger,
@@ -43,5 +43,7 @@ export const mastra: Mastra = new Mastra({
     restaurantAgent,
   },
   workflows: { weatherWorkflowWithSuspend },
-  networks: { intentRouter },
+  vnext_networks: {
+    'orchestrator-network': orchestratorNetwork,
+  },
 });

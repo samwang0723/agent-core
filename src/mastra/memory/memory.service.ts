@@ -12,6 +12,79 @@ import {
 import logger from '../utils/logger';
 import { CoreMessage } from '@mastra/core';
 
+// Helper functions for message content filtering when vNext network is enabled
+
+/**
+ * Determines if a text block should be kept based on its content
+ * @param text - The text content to check
+ * @returns false if the text contains both "resourceId" and "resourceType" (indicating JSON selection object), true otherwise
+ */
+function shouldKeepTextBlock(text: string): boolean {
+  return !(text.includes('resourceId') && text.includes('resourceType'));
+}
+
+/**
+ * Filters message content to remove text blocks containing resourceId/resourceType JSON
+ * @param message - The CoreMessage to filter
+ * @returns null if no content blocks remain after filtering, otherwise a new message with filtered content
+ */
+function filterMessageContent(message: CoreMessage): CoreMessage | null {
+  if (!message.content) {
+    return message;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const content = message.content as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let filteredContent: any;
+
+  // Handle legacy format: content has a 'parts' property
+  if (content.parts && Array.isArray(content.parts)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const filteredParts = content.parts.filter((part: any) => {
+      if (part.type === 'text' && typeof part.text === 'string') {
+        return shouldKeepTextBlock(part.text);
+      }
+      return true; // Keep non-text parts
+    });
+
+    if (filteredParts.length === 0) {
+      return null; // Drop message if no content blocks remain
+    }
+
+    filteredContent = {
+      ...content,
+      parts: filteredParts,
+    };
+  }
+  // Handle vNext format: content is a direct array
+  else if (Array.isArray(content)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const filteredArray = content.filter((block: any) => {
+      if (block.type === 'text' && typeof block.text === 'string') {
+        return shouldKeepTextBlock(block.text);
+      }
+      return true; // Keep non-text blocks
+    });
+
+    if (filteredArray.length === 0) {
+      return null; // Drop message if no content blocks remain
+    }
+
+    filteredContent = filteredArray;
+  }
+  // Handle other content formats - pass through unchanged
+  else {
+    filteredContent = content;
+  }
+
+  // Return new message object with filtered content, preserving all other properties
+  return {
+    ...message,
+    content: filteredContent,
+  };
+}
+
 // Helper functions removed as they're no longer needed with the new Memory API
 
 /**
@@ -78,6 +151,8 @@ class MastraMemoryService {
 
   /**
    * Get user memory including conversation history and working memory
+   * When MASTRA_USING_VNEXT_NETWORK=true, filters out text blocks containing
+   * resourceId/resourceType JSON to keep only pure conversational content.
    */
   async getUserMemory(
     userId: string,
@@ -89,6 +164,8 @@ class MastraMemoryService {
     try {
       const threadId = memoryPatterns.getThreadId(userId);
       const resourceId = memoryPatterns.getResourceId(userId);
+      const usingVNextNetwork =
+        process.env.MASTRA_USING_VNEXT_NETWORK === 'true';
       const { messages } = await this.memory.query({
         threadId,
         resourceId,
@@ -96,7 +173,29 @@ class MastraMemoryService {
           last: limit,
         },
       });
-      return { messages };
+
+      let filteredMessages = messages;
+      if (usingVNextNetwork) {
+        const originalCount = messages.length;
+        filteredMessages = messages
+          .map(message => filterMessageContent(message))
+          .filter((message): message is CoreMessage => message !== null);
+
+        const filteredCount = filteredMessages.length;
+        const droppedCount = originalCount - filteredCount;
+
+        logger.debug(
+          `[${userId}] vNext filtering: ${originalCount} -> ${filteredCount} messages (${droppedCount} dropped)`
+        );
+
+        if (droppedCount > 0) {
+          logger.debug(
+            `[${userId}] Dropped ${droppedCount} messages with no remaining content blocks after filtering`
+          );
+        }
+      }
+
+      return { messages: filteredMessages };
     } catch (error) {
       logger.error('Failed to get user memory', {
         error,

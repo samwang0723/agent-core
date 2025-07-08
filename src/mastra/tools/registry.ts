@@ -177,6 +177,23 @@ class ToolRegistry {
   getClient(serverName: string): McpClient | undefined {
     return this.mcpRegistry.getClient(serverName);
   }
+
+  /**
+   * Set access token for all MCP clients that require authentication
+   */
+  setAccessTokenForAll(accessToken: string | null): void {
+    this.mcpRegistry.setAccessTokenForAll(accessToken);
+  }
+
+  /**
+   * Set access token for a specific MCP server
+   */
+  setAccessTokenForServer(
+    serverName: string,
+    accessToken: string | null
+  ): void {
+    this.mcpRegistry.setAccessTokenForServer(serverName, accessToken);
+  }
 }
 
 // Create and initialize the instance, then export it.

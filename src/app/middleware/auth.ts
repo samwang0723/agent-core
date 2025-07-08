@@ -6,6 +6,7 @@ import { createAuthError } from '../utils/api-error';
 import { ErrorCodes } from '../utils/error-code';
 import { SessionService } from '../users/user.service';
 import { UserService } from '../users/user.service';
+import { toolRegistry } from '../../mastra/tools/registry';
 
 export interface Session {
   id: string;
@@ -72,6 +73,10 @@ export const refreshAccessTokenIfNeeded = async (
   );
 
   if (!isTokenExpired) {
+    toolRegistry.setAccessTokenForAll(userSession.accessToken!);
+    logger.debug(
+      `[${userSession.id}] Tool: Access token not expired: ${userSession.accessToken}`
+    );
     return;
   }
 
@@ -154,6 +159,12 @@ export const refreshAccessTokenIfNeeded = async (
     await sessionService.updateSession(token, userSession);
     logger.debug(
       `Session updated with new access token for user ${userSession.id}`
+    );
+
+    // Update agent factory with new access token
+    toolRegistry.setAccessTokenForAll(userSession.accessToken);
+    logger.debug(
+      `[${userSession.id}] Tool: Access token updated: ${userSession.accessToken}`
     );
   } catch (error) {
     logger.error(

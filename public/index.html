@@ -1309,12 +1309,20 @@
         });
       }
 
+      function cleanContent(content) {
+        if (typeof content !== 'string') {
+          return content;
+        }
+        return content.replace(/\[Context:[\s\S]*?\]/g, '').trim();
+      }
+
       function addMessage(
         content,
         isUser = false,
         isStreaming = false,
         timestamp = null
       ) {
+        content = cleanContent(content);
         const container = document.getElementById('chatContainer');
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${
@@ -1363,7 +1371,7 @@
               content
             )}</span>`;
           } else {
-            streamingDiv.innerHTML = parseMarkdown(content);
+            streamingDiv.innerHTML = parseMarkdown(cleanContent(content));
           }
           streamingDiv.appendChild(timeDiv);
           streamingDiv.removeAttribute('id');
@@ -1700,7 +1708,7 @@
                   accumulatedText = parsedData.accumulated || '';
                   if (streamingDiv) {
                     streamingDiv.innerHTML =
-                      parseMarkdown(accumulatedText) +
+                      parseMarkdown(cleanContent(accumulatedText)) +
                       '<span class="typing-indicator"> ●</span>';
                     const container = document.getElementById('chatContainer');
                     container.scrollTop = container.scrollHeight;
@@ -1800,7 +1808,7 @@
               if (content === '') {
                 return;
               }
-              addMessage(content, isUser, false, msg.createdAt);
+              addMessage(cleanContent(content), isUser, false, msg.createdAt);
             });
             updateStatus('History restored.', 'success');
             // Scroll to bottom to show latest messages

@@ -9,6 +9,7 @@ import { mastraMemoryService } from '../../mastra/memory/memory.service';
 import { memoryPatterns } from '../../mastra/memory/memory.dto';
 import { messageHistory } from './history.service';
 import { generateRequestContext } from './conversation.service';
+import { mastra } from '../../mastra';
 
 type Env = {
   Variables: {
@@ -67,17 +68,54 @@ app.post('/stream', requireAuth, async c => {
         throw new Error('Message is required and must be a string');
       }
 
-      const result = await optimizedIntentDetection(message);
-      logger.info(`[${user.id}] Agent: Intent Result: `, result);
+      const startTime = Date.now();
+      const { runtimeContext, contextMessage } = await generateRequestContext(
+        user,
+        c
+      );
+      const usingVNextNetwork =
+        process.env.MASTRA_USING_VNEXT_NETWORK === 'true';
 
-      // If an agent is found, stream the response from the agent
-      if (result.suitableAgent) {
-        const startTime = Date.now();
-        const { runtimeContext, contextMessage } = await generateRequestContext(
-          user,
-          c
+      // This will hold the stream of text chunks, unified from different sources.
+      let textStream: ReadableStream<string>;
+      if (usingVNextNetwork) {
+        const network = mastra.vnext_getNetwork('orchestrator-network')!;
+        logger.info(`[${user.id}] Agent: Using vNext network`);
+        const networkResult = await network.stream(
+          `${contextMessage.content} ${message}`,
+          {
+            resourceId: memoryPatterns.getResourceId(user.id),
+            threadId: memoryPatterns.getThreadId(user.id),
+            runtimeContext,
+          }
         );
-        const agentStream = await result.suitableAgent.stream(message, {
+
+        // Adapt Mastra vNext stream to a simple text stream
+        textStream = (
+          networkResult.stream as ReadableStream<{
+            type: string;
+            argsTextDelta?: string;
+          }>
+        ).pipeThrough(
+          // HACK: This assumes the Mastra vNext stream emits objects
+          new TransformStream<{ type: string; argsTextDelta?: string }, string>(
+            {
+              transform(chunk, controller) {
+                if (typeof chunk.argsTextDelta === 'string') {
+                  controller.enqueue(chunk.argsTextDelta);
+                }
+              },
+            }
+          )
+        );
+      } else {
+        // NOTE: This is the old way of doing it. intent detection may not be accurate
+        // to determine which agent to use based on random conversation.
+        // We should use the vNext network for this.
+        const result = await optimizedIntentDetection(message);
+        logger.info(`[${user.id}] Agent: Intent Result: `, result);
+        logger.info(`[${user.id}] Agent: Using agent`);
+        const streamResult = await result.suitableAgent!.stream(message, {
           resourceId: memoryPatterns.getResourceId(user.id),
           threadId: memoryPatterns.getThreadId(user.id),
           maxRetries: 1,
@@ -90,22 +128,21 @@ app.post('/stream', requireAuth, async c => {
           runtimeContext,
           context: [contextMessage],
         });
+        textStream = streamResult.textStream as ReadableStream<string>;
+      }
 
-        let accumulated = '';
+      let accumulated = '';
 
-        // Consume the stream and feed to SSE output
-        for await (const chunk of agentStream.textStream) {
-          if (accumulated.length === 0) {
-            const duration = Date.now() - startTime;
-            logger.info(
-              `[${user.id}] Agent: Time to first chunk took ${duration} ms`
-            );
-          }
-          accumulated += chunk;
-          sseOutput.onChunk(chunk, accumulated);
+      // Consume the stream and feed to SSE output
+      for await (const chunk of textStream) {
+        if (accumulated.length === 0) {
+          const duration = Date.now() - startTime;
+          logger.info(
+            `[${user.id}] Agent: Time to first chunk took ${duration} ms`
+          );
         }
-      } else {
-        throw new Error('No suitable agent found');
+        accumulated += chunk;
+        sseOutput.onChunk(chunk, accumulated);
       }
     } catch (error) {
       logger.error('Error during streaming chat:', error);

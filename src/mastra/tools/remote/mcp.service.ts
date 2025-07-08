@@ -15,8 +15,15 @@ import { RuntimeContext } from '@mastra/core/di';
 export class McpClient {
   private sessionId: string | null = null;
   private availableTools: McpTool[] = [];
-
+  private accessToken: string | null = null;
   constructor(private config: McpServerConfig) {}
+
+  /**
+   * Set the OAuth access token for authenticated requests
+   */
+  setAccessToken(token: string | null): void {
+    this.accessToken = token;
+  }
 
   async initialize(): Promise<void> {
     if (!this.config.enabled) {
@@ -178,10 +185,18 @@ export class McpClient {
 
     // Add authorization header if needed
     if (needsAuth) {
+      logger.debug(
+        `[${name}] Tool: needsAuth: ${needsAuth}, googleAuthToken: ${googleAuthToken}, accessToken: ${this.accessToken}`
+      );
       if (needsAuth === 'google' && googleAuthToken) {
         headers['Authorization'] = `Bearer ${googleAuthToken}`;
-        logger.info(
+        logger.debug(
           `[${name}] Tool: Authorization header: ${headers['Authorization']}`
+        );
+      } else if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+        logger.debug(
+          `[${name}] Tool: (global) Authorization header: ${headers['Authorization']}`
         );
       } else {
         throw new Error(

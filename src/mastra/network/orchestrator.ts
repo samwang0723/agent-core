@@ -1,4 +1,4 @@
-import { AgentNetwork } from '@mastra/core/network';
+import { NewAgentNetwork } from '@mastra/core/network/vNext';
 import { createModelByKey } from '../models/model.service';
 import {
   jiraAgent,
@@ -9,18 +9,12 @@ import {
   webSearchAgent,
   weatherAgentWithWorkflow,
 } from '../agents/index';
+import { weatherWorkflowWithSuspend } from '../workflows/weather';
+import { mastraMemoryService } from '../memory/memory.service';
 
-/**
- * Intent Router (Deprecated)
- *
- * This is the main network that routes user requests to the appropriate agent based on their intent.
- * It uses the available agents and their capabilities to determine the best agent to handle the request.
- *
- * This currently is not used, but is kept for reference. As it cannot support memory.
- *
- */
-export const intentRouter = new AgentNetwork({
-  name: 'Intent Router',
+export const orchestratorNetwork = new NewAgentNetwork({
+  id: 'orchestrator-network',
+  name: 'Orchestrator Network',
   instructions: `You are an intelligent router that directs user requests to the appropriate agent based on their intent. Analyze the user's message and select the best agent to handle the request.
 
 Here are the available agents and their capabilities:
@@ -55,7 +49,7 @@ Here are the available agents and their capabilities:
 
 Route the user's request to the single most appropriate agent.`,
   model: createModelByKey('gemini-2.5-flash')!,
-  agents: [
+  agents: {
     webSearchAgent,
     weatherAgentWithWorkflow,
     gcalendarAgent,
@@ -63,5 +57,9 @@ Route the user's request to the single most appropriate agent.`,
     confluenceAgent,
     jiraAgent,
     restaurantAgent,
-  ],
+  },
+  workflows: {
+    weatherWorkflowWithSuspend,
+  },
+  memory: mastraMemoryService.getMemory(),
 });

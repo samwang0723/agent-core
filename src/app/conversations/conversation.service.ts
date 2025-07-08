@@ -3,6 +3,7 @@ import { Session } from '../middleware/auth';
 import { UserRuntimeContext } from '../../mastra/utils/context';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import { CoreMessage } from '@mastra/core';
+import logger from '../utils/logger';
 
 export async function generateRequestContext(
   session: Session,
@@ -22,6 +23,10 @@ export async function generateRequestContext(
   runtimeContext.set('email', session.email);
   runtimeContext.set('timezone', requestHeaders['x-client-timezone'] as string);
   runtimeContext.set('googleAuthToken', session.accessToken || '');
+  logger.debug(`[${session.id}] ============= Agent: session: `, session);
+  logger.debug(
+    `[${session.id}] ============= Agent: runtimeContext: ${runtimeContext.get('googleAuthToken')}`
+  );
 
   // Brings time context to Agent
   const contextMessage = `[Context: Current date and time in ${requestHeaders['x-client-timezone']} timezone: ${new Date().toLocaleString(
@@ -29,7 +34,7 @@ export async function generateRequestContext(
     {
       timeZone: requestHeaders['x-client-timezone'] as string,
     }
-  )}. User name: ${session.name}.]`;
+  )}. User name: ${session.name}]`;
 
   return {
     runtimeContext,

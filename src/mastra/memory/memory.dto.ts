@@ -4,6 +4,7 @@ import { z } from 'zod';
 import logger from '../utils/logger';
 import { MemoryProcessor } from '@mastra/core';
 import { TokenLimiter, ToolCallFilter } from '@mastra/memory/processors';
+import { LibSQLStore } from '@mastra/libsql';
 
 // User profile schema for structured working memory
 const userProfileSchema = z.object({
@@ -103,6 +104,14 @@ const createPostgresStorage = () => {
   }
 };
 
+const createLibSQLStorage = () => {
+  const storage = new LibSQLStore({
+    url: 'file:./mastra.db',
+  });
+  logger.info('Initialized LibSQL storage for memory persistence');
+  return storage;
+};
+
 // Singleton instance for Memory to prevent multiple instances
 let memoryInstance: Memory | null = null;
 
@@ -115,11 +124,13 @@ export const createMastraMemory = () => {
   }
 
   try {
-    const storage = createPostgresStorage();
+    const module = process.env.MASTRA_MEMORY_MODULE || 'libsql';
+    const storage =
+      module === 'postgres' ? createPostgresStorage() : createLibSQLStorage();
 
     // Create memory configuration with PostgreSQL storage
     const memoryConfig: {
-      storage?: PostgresStore;
+      storage?: PostgresStore | LibSQLStore;
       options: {
         lastMessages: number;
         workingMemory: {
