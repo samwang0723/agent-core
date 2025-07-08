@@ -4,6 +4,7 @@ import {
   forecastSchema,
   weatherWorkflowWithSuspend,
 } from '../../workflows/weather';
+import logger from '../../utils/logger';
 
 export const startWeatherTool = createTool({
   id: 'start-weather-tool',
@@ -51,5 +52,43 @@ export const resumeWeatherTool = createTool({
       default:
         throw new Error(`Unexpected workflow status: ${result.status}`);
     }
+  },
+});
+
+export const getWeatherTool = createTool({
+  id: 'get-weather-tool',
+  description: 'Get the weather tool',
+  inputSchema: z.object({
+    city: z.string().describe('City name'),
+  }),
+  outputSchema: forecastSchema,
+  execute: async ({ context }) => {
+    const weatherUrl = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${encodeURIComponent(context.city)}?unitGroup=metric&include=days&key=${process.env.VISUAL_CROSSING_API_KEY}&contentType=json`;
+    const response = await fetch(weatherUrl);
+    const data = (await response.json()) as {
+      days: {
+        datetime: string;
+        tempmax: number;
+        tempmin: number;
+        precipprob: number;
+        conditions: string;
+      }[];
+    };
+
+    logger.debug(`[${context.city}] Weather data: `, data);
+
+    if (!data.days?.[0]) {
+      throw new Error(`Weather data not available for '${context.city}'`);
+    }
+
+    const forecast = {
+      date: data.days[0].datetime,
+      maxTemp: data.days[0].tempmax,
+      minTemp: data.days[0].tempmin,
+      condition: data.days[0].conditions,
+      precipitationChance: data.days[0].precipprob,
+      location: context.city,
+    };
+    return forecast;
   },
 });

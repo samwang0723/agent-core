@@ -9,7 +9,7 @@ import {
   confluenceAgent,
   jiraAgent,
   webSearchAgent,
-  weatherAgentWithWorkflow,
+  weatherAgent,
   restaurantAgent,
 } from '../../mastra/agents/index';
 
@@ -39,7 +39,7 @@ export async function optimizedIntentDetection(
   if (result.requiresTools && result.detectedTools?.[0]) {
     switch (result.detectedTools?.[0]) {
       case 'weather':
-        suitableAgent = weatherAgentWithWorkflow;
+        suitableAgent = weatherAgent;
         break;
       case 'websearch':
         suitableAgent = webSearchAgent;

@@ -7,9 +7,8 @@ import {
   restaurantAgent,
   gcalendarAgent,
   webSearchAgent,
-  weatherAgentWithWorkflow,
+  weatherAgent,
 } from '../agents/index';
-import { weatherWorkflowWithSuspend } from '../workflows/weather';
 import { mastraMemoryService } from '../memory/memory.service';
 
 export const orchestratorNetwork = new NewAgentNetwork({
@@ -31,7 +30,7 @@ Here are the available agents and their capabilities:
   - Example: "who is the ceo of openai"
   - Example: "what is the latest news on the stock market"
 
-- \`Weather Agent with Workflow\`: Use for checking the weather, getting forecasts, or asking about weather conditions.
+- \`Weather Agent\`: Use for checking the weather, getting forecasts, or asking about weather conditions.
   - Example: "what's the weather like in london"
   - Example: "will it rain tomorrow in paris"
 
@@ -68,19 +67,16 @@ Here are the available agents and their capabilities:
 - WORK COMPLETELY SILENTLY until you have the complete result to share
 - ONLY speak when you have the complete result to share
 
-Route the user's request to the most appropriate agent`,
+Route the user's request to the most appropriate agent or workflow.`,
   model: createModelByKey('gemini-2.5-flash')!,
   agents: {
     webSearchAgent,
-    weatherAgentWithWorkflow,
+    weatherAgent,
     gcalendarAgent,
     gmailAgent,
     confluenceAgent,
     jiraAgent,
     restaurantAgent,
-  },
-  workflows: {
-    weatherWorkflowWithSuspend,
   },
   memory: mastraMemoryService.getMemory(),
 });

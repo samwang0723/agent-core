@@ -10,31 +10,10 @@ export const forecastSchema = z.object({
   location: z.string(),
 });
 
-function getWeatherCondition(code: number): string {
-  const conditions: Record<number, string> = {
-    0: 'Clear sky',
-    1: 'Mainly clear',
-    2: 'Partly cloudy',
-    3: 'Overcast',
-    45: 'Foggy',
-    48: 'Depositing rime fog',
-    51: 'Light drizzle',
-    53: 'Moderate drizzle',
-    55: 'Dense drizzle',
-    61: 'Slight rain',
-    63: 'Moderate rain',
-    65: 'Heavy rain',
-    71: 'Slight snow fall',
-    73: 'Moderate snow fall',
-    75: 'Heavy snow fall',
-    95: 'Thunderstorm',
-  };
-  return conditions[code] || 'Unknown';
-}
-
 export const fetchWeatherWithSuspend = createStep({
   id: 'fetch-weather',
-  description: 'Fetches weather forecast for a given city',
+  description:
+    'Fetches weather forecast for a given city using Visual Crossing API',
   inputSchema: z.object({}),
   resumeSchema: z.object({
     city: z.string().describe('The city to get the weather for'),
@@ -47,43 +26,34 @@ export const fetchWeatherWithSuspend = createStep({
       });
     }
 
-    const geocodingUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-      resumeData.city
-    )}&count=1`;
-    const geocodingResponse = await fetch(geocodingUrl);
-    const geocodingData = (await geocodingResponse.json()) as {
-      results: { latitude: number; longitude: number; name: string }[];
-    };
-
-    if (!geocodingData.results?.[0]) {
-      throw new Error(`Location '${resumeData.city}' not found`);
+    if (!process.env.VISUAL_CROSSING_API_KEY) {
+      throw new Error(
+        'VISUAL_CROSSING_API_KEY environment variable is required'
+      );
     }
 
-    const { latitude, longitude } = geocodingData.results[0];
-
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=precipitation,weathercode&timezone=auto,&hourly=precipitation_probability,temperature_2m`;
+    const weatherUrl = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${encodeURIComponent(resumeData.city)}?unitGroup=metric&include=days&key=${process.env.VISUAL_CROSSING_API_KEY}&contentType=json`;
     const response = await fetch(weatherUrl);
     const data = (await response.json()) as {
-      current: {
-        time: string;
-        precipitation: number;
-        weathercode: number;
-      };
-      hourly: {
-        precipitation_probability: number[];
-        temperature_2m: number[];
-      };
+      days: {
+        datetime: string;
+        tempmax: number;
+        tempmin: number;
+        precipprob: number;
+        conditions: string;
+      }[];
     };
 
+    if (!data.days?.[0]) {
+      throw new Error(`Weather data not available for '${resumeData.city}'`);
+    }
+
     const forecast = {
-      date: new Date().toISOString(),
-      maxTemp: Math.max(...data.hourly.temperature_2m),
-      minTemp: Math.min(...data.hourly.temperature_2m),
-      condition: getWeatherCondition(data.current.weathercode),
-      precipitationChance: data.hourly.precipitation_probability.reduce(
-        (acc, curr) => Math.max(acc, curr),
-        0
-      ),
+      date: data.days[0].datetime,
+      maxTemp: data.days[0].tempmax,
+      minTemp: data.days[0].tempmin,
+      condition: data.days[0].conditions,
+      precipitationChance: data.days[0].precipprob,
       location: resumeData.city,
     };
 

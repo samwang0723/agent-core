@@ -3,8 +3,8 @@ import { toolRegistry } from '../tools/registry';
 import { mastraMemoryService } from '../memory/memory.service';
 import { createModelByKey } from '../models/model.service';
 
-export const weatherAgentWithWorkflow = new Agent({
-  name: 'Weather Agent with Workflow',
+export const weatherAgent = new Agent({
+  name: 'Weather Agent',
   instructions: `You are a helpful weather assistant that provides accurate weather information.
  
 Your primary function is to help users get weather details for specific locations. When responding:
@@ -14,13 +14,10 @@ Your primary function is to help users get weather details for specific location
 - Include relevant details like humidity, wind conditions, and precipitation
 - Keep responses concise but informative
  
-Use the startWeatherTool to start the weather workflow. This will start and then suspend the workflow and return a runId.
-Use the resumeWeatherTool to resume the weather workflow. This takes the runId returned from the startWeatherTool and the city entered by the user. It will resume the workflow and return the result.
 The result will be the weather forecast for the city.`,
-  model: createModelByKey('claude-3-5-haiku')!,
+  model: createModelByKey('gemini-2.5-flash')!,
   tools: {
-    startWeatherTool: toolRegistry.getTool('start-weather-tool')!,
-    resumeWeatherTool: toolRegistry.getTool('resume-weather-tool')!,
+    getWeatherTool: toolRegistry.getTool('get-weather-tool')!,
   },
   memory: mastraMemoryService.getMemory(),
 });
