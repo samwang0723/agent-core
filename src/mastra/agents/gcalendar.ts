@@ -63,7 +63,7 @@ If a search query fails:
 - Keep all responses clean and readable without ANY special formatting characters
 
 Remember: Always preserve the exact Google calendar search syntax and never modify the search operators or their expected formats.`,
-  model: createModelByKey('gemini-2.5-flash')!,
+  model: createModelByKey('claude-3-7-sonnet')!,
   tools: {
     listCalendars: toolRegistry.getServerTool(
       'google-assistant',
