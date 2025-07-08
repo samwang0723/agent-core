@@ -8,6 +8,7 @@ import {
   gcalendarAgent,
   webSearchAgent,
   weatherAgent,
+  generalAgent,
 } from '../agents/index';
 import { mastraMemoryService } from '../memory/memory.service';
 
@@ -23,8 +24,9 @@ export const orchestratorNetwork = new NewAgentNetwork({
 - For maximum efficiency, whenever you need to perform multiple independent operations, invoke all relevant tools simultaneously rather than sequentially.
 - When user asks about current events, news, or time-sensitive information, prioritize recent search results
 
-
 Here are the available agents and their capabilities:
+
+- \`General Agent\`: Use for general questions and answers that don't fit into the other agents.
 
 - \`Web Search Agent\`: Use for general web searches, finding information online, looking up facts, or researching topics.
   - Example: "who is the ceo of openai"
@@ -70,6 +72,7 @@ Here are the available agents and their capabilities:
 Route the user's request to the most appropriate agent or workflow.`,
   model: createModelByKey('gemini-2.5-flash')!,
   agents: {
+    generalAgent,
     webSearchAgent,
     weatherAgent,
     gcalendarAgent,
