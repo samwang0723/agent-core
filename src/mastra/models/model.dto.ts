@@ -75,4 +75,10 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     baseURL: 'https://generativelanguage.googleapis.com/v1beta',
     apiKey: process.env.GOOGLE_API_KEY,
   },
+  'gemini-1.5-flash': {
+    provider: 'google',
+    modelName: 'gemini-1.5-flash-latest',
+    baseURL: 'https://generativelanguage.googleapis.com/v1beta',
+    apiKey: process.env.GOOGLE_API_KEY,
+  },
 };
