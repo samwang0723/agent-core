@@ -7,3 +7,4 @@ export * from './jira';
 export * from './restaurant';
 export * from './general';
 export * from './reddit';
+export * from './music';

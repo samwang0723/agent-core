@@ -9,6 +9,7 @@ import {
   jiraAgent,
   restaurantAgent,
   redditAgent,
+  musicAgent,
 } from './agents/index';
 import { weatherWorkflowWithSuspend } from './workflows/weather';
 import logger from './utils/logger';
@@ -45,6 +46,7 @@ export const mastra: Mastra = new Mastra({
     jiraAgent,
     restaurantAgent,
     redditAgent,
+    musicAgent,
   },
   workflows: { weatherWorkflowWithSuspend },
   vnext_networks: {

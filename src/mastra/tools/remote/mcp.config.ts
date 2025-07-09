@@ -46,4 +46,11 @@ export const mcpServers: McpServerConfig[] = [
       process.env.REDDIT_MCP_HEALTH_URL || 'http://127.0.0.1:3006/health',
     enabled: process.env.REDDIT_MCP_ENABLED !== 'false',
   },
+  {
+    name: 'apple-music',
+    url: process.env.APPLE_MUSIC_MCP_URL || 'http://127.0.0.1:3007/mcp',
+    healthUrl:
+      process.env.APPLE_MUSIC_MCP_HEALTH_URL || 'http://127.0.0.1:3007/health',
+    enabled: process.env.APPLE_MUSIC_MCP_ENABLED !== 'false',
+  },
 ];
