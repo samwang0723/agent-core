@@ -15,7 +15,7 @@ Your primary function is to help users get weather details for specific location
 - Keep responses concise but informative
  
 The result will be the weather forecast for the city.`,
-  model: createModelByKey('gemini-2.5-flash')!,
+  model: createModelByKey('gemini-1.5-flash')!,
   tools: {
     getWeatherTool: toolRegistry.getTool('get-weather-tool')!,
   },

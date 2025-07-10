@@ -206,7 +206,7 @@ By following these rules, your response will be conversational and easy for the 
 - Keep all responses clean and readable without ANY special formatting characters
 
 Remember: Always preserve the exact Gmail search syntax and never modify the search operators or their expected formats.`,
-  model: createModelByKey('gemini-2.5-flash')!,
+  model: createModelByKey('gemini-2.0-flash')!,
   tools: {
     getCurrentTime: toolRegistry.getServerTool('time', 'get_current_time')!,
     listEmails: toolRegistry.getServerTool(
