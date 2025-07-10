@@ -15,6 +15,7 @@ export const gmailAgent = new Agent({
 - When user mentioned about time period, check with getCurrentTime tool
 - If no result respond, do a fuzzy search on query
 - NEVER fake the email content
+- When using asking for details, you should use getDetails tool, and you should use the email id from the listEmails tool result.
 - If no specific time period is mentioned, use getCurrentTime tool to get current time, search for emails in the last 7 days \`newer_than:7d\`
 
 ## CRITICAL SILENT OPERATION RULES:
