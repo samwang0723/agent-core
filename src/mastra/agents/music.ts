@@ -56,7 +56,7 @@ Before sending any response, verify that you have:
 - Provided NO intermediate commentary during tool execution
 - Kept response concise and conversational
 `,
-  model: createModelByKey('gemini-1.5-flash')!,
+  model: createModelByKey('gpt-4o')!,
   tools: {
     setVolume: toolRegistry.getServerTool(
       'apple-music',

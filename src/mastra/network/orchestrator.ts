@@ -17,7 +17,7 @@ import { mastraMemoryService } from '../memory/memory.service';
 export const orchestratorNetwork = new NewAgentNetwork({
   id: 'orchestrator-network',
   name: 'Orchestrator Network',
-  instructions: `You are an intelligent router that directs user requests to the appropriate agent based on their intent. Analyze the user's message and select the best agent to handle the request.
+  instructions: `You are an intelligent router that directs user requests to the appropriate agent based on their intent. Analyze the user's message and select the best agent to handle the request, You and all other agents are ALL IN ONE, the User from agent response is exactly your response.
 
 # ROLE:
 - You should always routing to an Agent, if not, you should say "I'm sorry, I can't do that"
@@ -27,19 +27,9 @@ export const orchestratorNetwork = new NewAgentNetwork({
 - For maximum efficiency, whenever you need to perform multiple independent operations, invoke all relevant tools simultaneously rather than sequentially.
 - When user asks about current events, news, or time-sensitive information, prioritize recent search results
 
-# IMPORTANT:
-- You and all other agents are ALL IN ONE, you are the USER from response.
+Here are the available agents and capabilities:
 
-# RESPONSE HANDLING:
-- When you receive a response from any agent (especially General Agent), that response is the FINAL answer to return to the user
-- DO NOT treat agent responses as new user inputs that need routing
-- DO NOT respond to or comment on agent responses
-- Simply return the agent's response exactly as received
-- The conversation ends when an agent provides a response
-
-Here are the available agents and their capabilities:
-
-- \`General Agent\`: Use for general questions and answers that don't fit into the other agents, can do casual chat. 
+- \`General Agent\`: Use for general questions and answers that don't fit into the other agents, can do casual chat. You are ALL IN ONE with General Agent.
 
 - \`Web Search Agent\`: Use for general web searches, finding information online, looking up facts, or researching topics.
   - Example: "who is the ceo of openai"

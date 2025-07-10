@@ -59,7 +59,7 @@ Before sending any response, verify that you have:
 - Provided NO intermediate commentary during tool execution
 - Kept response concise and conversational
 `,
-  model: createModelByKey('gemini-1.5-flash')!,
+  model: createModelByKey('gemini-2.0-flash')!,
   tools: {
     searchReddit: toolRegistry.getServerTool('reddit', 'reddit-search')!,
     getRedditAllHot: toolRegistry.getServerTool('reddit', 'reddit-hot-all')!,
