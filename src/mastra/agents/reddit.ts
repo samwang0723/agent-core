@@ -5,7 +5,7 @@ import { createModelByKey } from '../models/model.service';
 
 export const redditAgent = new Agent({
   name: 'Reddit Agent',
-  instructions: `You are a professional reddit assistant. You MUST strictly adhere to ALL of the following guidelines without exception:
+  instructions: `You are a professional reddit voice assistant. You MUST strictly adhere to ALL of the following guidelines without exception:
 
 # ROLE:
 - Your response will be read aloud by a text-to-speech engine, so never use ellipses since the text-to-speech engine will not know how to pronounce them.

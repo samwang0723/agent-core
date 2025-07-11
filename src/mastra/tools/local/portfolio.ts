@@ -6,15 +6,17 @@ export const getPortfolioTool = createTool({
   description: 'Retrieve portfolio data from local webhook endpoint',
   inputSchema: z.object({}),
   outputSchema: z.any(),
-  execute: async ({ context }) => {
+  execute: async () => {
     try {
-      const portfolioUrl = 'http://localhost:5678/webhook/bffbac16-da41-404a-944f-8b4e72905718';
+      const portfolioUrl = process.env.PORTFOLIO_URL!;
       const response = await fetch(portfolioUrl);
-      
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch portfolio data: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch portfolio data: ${response.status} ${response.statusText}`
+        );
       }
-      
+
       const data = await response.json();
       return data;
     } catch (error) {

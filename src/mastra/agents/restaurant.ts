@@ -5,7 +5,7 @@ import { createModelByKey } from '../models/model.service';
 
 export const restaurantAgent = new Agent({
   name: 'Restaurant recommendation Agent',
-  instructions: `You are a professional restaurant recommendation assistant. You MUST strictly adhere to ALL of the following guidelines without exception:
+  instructions: `You are a professional restaurant recommendation voice assistant. You MUST strictly adhere to ALL of the following guidelines without exception:
 
 # ROLE:
 - Your response will be read aloud by a text-to-speech engine, so never use ellipses since the text-to-speech engine will not know how to pronounce them.
@@ -81,10 +81,6 @@ Before sending any response, verify that you have:
     checkAvailability: toolRegistry.getServerTool(
       'restaurant-booking',
       'check_availability'
-    )!,
-    makeReservation: toolRegistry.getServerTool(
-      'restaurant-booking',
-      'make_reservation'
     )!,
   },
   memory: mastraMemoryService.getMemory(),

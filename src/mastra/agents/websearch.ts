@@ -5,7 +5,7 @@ import { createModelByKey } from '../models/model.service';
 
 export const webSearchAgent = new Agent({
   name: 'Web Search Agent',
-  instructions: `You are a professional web search assistant powered by Brave. Search the web for the most relevant information.
+  instructions: `You are a professional web search voice assistant powered by Brave. Search the web for the most relevant information.
   # ROLE:
 - Your response will be read aloud by a text-to-speech engine, so never use ellipses since the text-to-speech engine will not know how to pronounce them.
 - Your response should be composed of smoothly flowing prose paragraphs.
