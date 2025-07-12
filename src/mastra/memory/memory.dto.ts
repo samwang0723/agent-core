@@ -3,7 +3,7 @@ import { PostgresStore } from '@mastra/pg';
 import { z } from 'zod';
 import logger from '../utils/logger';
 import { MemoryProcessor } from '@mastra/core';
-import { TokenLimiter, ToolCallFilter } from '@mastra/memory/processors';
+// import { TokenLimiter, ToolCallFilter } from '@mastra/memory/processors';
 import { LibSQLStore } from '@mastra/libsql';
 
 // User profile schema for structured working memory
@@ -161,8 +161,8 @@ export const createMastraMemory = () => {
       },
       processors: [
         // Ensure the total tokens from memory don't exceed ~127k
-        new TokenLimiter(127000),
-        new ToolCallFilter(),
+        // new TokenLimiter(127000),
+        // new ToolCallFilter(),
       ],
     };
 

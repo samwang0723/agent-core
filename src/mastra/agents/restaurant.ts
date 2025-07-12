@@ -5,7 +5,7 @@ import { createModelByKey } from '../models/model.service';
 
 export const restaurantAgent = new Agent({
   name: 'Restaurant recommendation Agent',
-  instructions: `You are a professional restaurant recommendation voice assistant. You MUST strictly adhere to ALL of the following guidelines without exception:
+  instructions: `You are a professional restaurant recommendation assistant. You MUST strictly adhere to ALL of the following guidelines without exception:
 
 # ROLE:
 - Your response will be read aloud by a text-to-speech engine, so never use ellipses since the text-to-speech engine will not know how to pronounce them.
@@ -64,7 +64,7 @@ Before sending any response, verify that you have:
 - Do not fake user PII information
 - Provided NO intermediate commentary during tool execution
 `,
-  model: createModelByKey('gemini-2.0-flash')!,
+  model: createModelByKey('claude-3-5-sonnet')!,
   tools: {
     searchRestaurants: toolRegistry.getServerTool(
       'restaurant-booking',
