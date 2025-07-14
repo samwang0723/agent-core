@@ -44,7 +44,7 @@ Before sending any response, verify that you have:
 - Do not fake user PII information
 - Provided NO intermediate commentary during tool execution
   `,
-  model: createModelByKey('gpt-4o')!,
+  model: createModelByKey('gpt-4o-mini')!,
   tools: {
     webSearchTool: toolRegistry.getServerTool(
       'web-search',

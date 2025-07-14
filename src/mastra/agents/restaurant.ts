@@ -64,15 +64,11 @@ Before sending any response, verify that you have:
 - Do not fake user PII information
 - Provided NO intermediate commentary during tool execution
 `,
-  model: createModelByKey('claude-3-5-sonnet')!,
+  model: createModelByKey('gpt-4o-mini')!,
   tools: {
     searchRestaurants: toolRegistry.getServerTool(
       'restaurant-booking',
       'search_restaurants'
-    )!,
-    getRestaurantDetails: toolRegistry.getServerTool(
-      'restaurant-booking',
-      'get_restaurant_details'
     )!,
     getBookingInstructions: toolRegistry.getServerTool(
       'restaurant-booking',

@@ -28,6 +28,7 @@ export const orchestratorNetwork = new NewAgentNetwork({
 - For maximum efficiency, whenever you need to perform multiple independent operations, invoke all relevant tools simultaneously rather than sequentially.
 - When user asks about current events, news, or time-sensitive information, prioritize recent search results
 - You are ALL IN ONE with General Agent, IMPORTANT: General Agent's User response is exactly your response.
+- Breakdown response paragraphs into multiple lines if needed.
 
 Here are the available agents and capabilities:
 
