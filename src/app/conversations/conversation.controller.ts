@@ -81,13 +81,12 @@ app.post('/stream', requireAuth, async c => {
       if (usingVNextNetwork) {
         const network = mastra.vnext_getNetwork('orchestrator-network')!;
         logger.info(`[${user.id}] Agent: Using vNext network`);
-        const networkResult = await network.loopStream(
+        const networkResult = await network.stream(
           `${contextMessage.content} ${message}`,
           {
             resourceId: memoryPatterns.getResourceId(user.id),
             threadId: memoryPatterns.getThreadId(user.id),
             runtimeContext,
-            maxIterations: 6,
           }
         );
 
