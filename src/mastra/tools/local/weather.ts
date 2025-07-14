@@ -64,31 +64,65 @@ export const getWeatherTool = createTool({
   outputSchema: forecastSchema,
   execute: async ({ context }) => {
     const weatherUrl = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${encodeURIComponent(context.city)}?unitGroup=metric&include=days&key=${process.env.VISUAL_CROSSING_API_KEY}&contentType=json`;
-    const response = await fetch(weatherUrl);
-    const data = (await response.json()) as {
-      days: {
-        datetime: string;
-        tempmax: number;
-        tempmin: number;
-        precipprob: number;
-        conditions: string;
-      }[];
-    };
 
-    logger.debug(`[${context.city}] Weather data: `, data);
+    const startTime = performance.now();
 
-    if (!data.days?.[0]) {
-      throw new Error(`Weather data not available for '${context.city}'`);
+    try {
+      const response = await fetch(weatherUrl, {
+        signal: AbortSignal.timeout(5000),
+      });
+
+      const fetchTime = performance.now() - startTime;
+      logger.debug(
+        `[${context.city}] Weather API fetch completed in ${fetchTime.toFixed(2)}ms`
+      );
+
+      const data = (await response.json()) as {
+        days: {
+          datetime: string;
+          tempmax: number;
+          tempmin: number;
+          precipprob: number;
+          conditions: string;
+        }[];
+      };
+
+      const totalTime = performance.now() - startTime;
+      logger.debug(
+        `[${context.city}] Weather data processing completed in ${totalTime.toFixed(2)}ms`,
+        data
+      );
+
+      if (!data.days?.[0]) {
+        throw new Error(`Weather data not available for '${context.city}'`);
+      }
+
+      const forecast = {
+        date: data.days[0].datetime,
+        maxTemp: data.days[0].tempmax,
+        minTemp: data.days[0].tempmin,
+        condition: data.days[0].conditions,
+        precipitationChance: data.days[0].precipprob,
+        location: context.city,
+      };
+      return forecast;
+    } catch (error) {
+      const errorTime = performance.now() - startTime;
+
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        logger.error(
+          `[${context.city}] Weather API timeout after ${errorTime.toFixed(2)}ms`
+        );
+        throw new Error(
+          `Weather service timeout for '${context.city}'. Please try again.`
+        );
+      }
+
+      logger.error(
+        `[${context.city}] Weather API error after ${errorTime.toFixed(2)}ms:`,
+        error
+      );
+      throw error;
     }
-
-    const forecast = {
-      date: data.days[0].datetime,
-      maxTemp: data.days[0].tempmax,
-      minTemp: data.days[0].tempmin,
-      condition: data.days[0].conditions,
-      precipitationChance: data.days[0].precipprob,
-      location: context.city,
-    };
-    return forecast;
   },
 });

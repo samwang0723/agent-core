@@ -59,103 +59,146 @@ export class McpClient {
   }
 
   private async initializeSession(): Promise<void> {
-    // Match the exact format from the working test script
-    const response = await fetch(this.config.url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json, text/event-stream',
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 'init',
-        method: 'initialize',
-        params: {
-          protocolVersion: '2024-11-05',
-          capabilities: { tools: {} },
-          clientInfo: { name: 'agent-swarm', version: '1.0.0' },
-        },
-      }),
-    });
-    logger.info(`Session initialization request: ${this.config.url}`);
+    const initTimeout = parseInt(process.env.MCP_INIT_TIMEOUT || '5000');
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Session initialization failed: ${response.status} - ${errorText}`
-      );
-    }
-
-    // Get the full response text to extract session ID (like curl -i)
-    const responseText = await response.text();
-
-    // Extract session ID from headers (check both response headers and response text)
-    this.sessionId = response.headers.get('mcp-session-id');
-    if (!this.sessionId) {
-      // Try to extract from response text if it's in there
-      const sessionMatch = responseText.match(/mcp-session-id:\s*([^\s\r\n]+)/);
-      this.sessionId = sessionMatch ? sessionMatch[1].trim() : 'default';
-    }
-
-    logger.info(`MCP session initialized: ${this.sessionId}`);
-
-    // Send initialized notification (skip response handling for notification)
     try {
-      await fetch(this.config.url, {
+      // Match the exact format from the working test script
+      const response = await fetch(this.config.url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json, text/event-stream',
-          'mcp-session-id': this.sessionId,
         },
         body: JSON.stringify({
           jsonrpc: '2.0',
-          method: 'notifications/initialized',
-          params: {},
+          id: 'init',
+          method: 'initialize',
+          params: {
+            protocolVersion: '2024-11-05',
+            capabilities: { tools: {} },
+            clientInfo: { name: 'agent-swarm', version: '1.0.0' },
+          },
         }),
+        signal: AbortSignal.timeout(initTimeout),
       });
-    } catch (error) {
-      logger.warn('Failed to send initialized notification:', error);
-      // Don't fail the whole initialization for this
+      logger.info(`Session initialization request: ${this.config.url}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Session initialization failed: ${response.status} - ${errorText}`
+        );
+      }
+
+      // Get the full response text to extract session ID (like curl -i)
+      const responseText = await response.text();
+
+      // Extract session ID from headers (check both response headers and response text)
+      this.sessionId = response.headers.get('mcp-session-id');
+      if (!this.sessionId) {
+        // Try to extract from response text if it's in there
+        const sessionMatch = responseText.match(
+          /mcp-session-id:\s*([^\s\r\n]+)/
+        );
+        this.sessionId = sessionMatch ? sessionMatch[1].trim() : 'default';
+      }
+
+      logger.info(`MCP session initialized: ${this.sessionId}`);
+
+      // Send initialized notification (skip response handling for notification)
+      try {
+        await fetch(this.config.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json, text/event-stream',
+            'mcp-session-id': this.sessionId,
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'notifications/initialized',
+            params: {},
+          }),
+          signal: AbortSignal.timeout(initTimeout),
+        });
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.name === 'TimeoutError' || error.name === 'AbortError')
+        ) {
+          logger.warn(
+            `Initialized notification timed out after ${initTimeout}ms:`,
+            error
+          );
+        } else {
+          logger.warn('Failed to send initialized notification:', error);
+        }
+        // Don't fail the whole initialization for this
+      }
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        (error.name === 'TimeoutError' || error.name === 'AbortError')
+      ) {
+        const errorMessage = `MCP session initialization timed out after ${initTimeout}ms for ${this.config.name}`;
+        logger.error(errorMessage, error);
+        throw new Error(errorMessage);
+      }
+      throw error;
     }
   }
 
   private async loadTools(): Promise<void> {
-    const response = await fetch(this.config.url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json, text/event-stream',
-        'mcp-session-id': this.sessionId!,
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'tools/list',
-        id: 'list-tools',
-      }),
-    });
+    const initTimeout = parseInt(process.env.MCP_INIT_TIMEOUT || '5000');
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Failed to list tools: ${response.status} - ${errorText}`
+    try {
+      const response = await fetch(this.config.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+          'mcp-session-id': this.sessionId!,
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'tools/list',
+          id: 'list-tools',
+        }),
+        signal: AbortSignal.timeout(initTimeout),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to list tools: ${response.status} - ${errorText}`
+        );
+      }
+
+      // Handle both JSON and SSE responses
+      const responseText = await response.text();
+      const result = this.parseResponse(responseText);
+
+      if (result.error) {
+        throw new Error(`Tools list error: ${result.error.message}`);
+      }
+
+      this.availableTools = (result.result as ToolsListResult)?.tools || [];
+
+      logger.info(
+        `Loaded ${this.availableTools.length} tools from ${this.config.name}:`,
+        this.availableTools.map(t => t.name)
       );
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        (error.name === 'TimeoutError' || error.name === 'AbortError')
+      ) {
+        const errorMessage = `MCP tools loading timed out after ${initTimeout}ms for ${this.config.name}`;
+        logger.error(errorMessage, error);
+        throw new Error(errorMessage);
+      }
+      throw error;
     }
-
-    // Handle both JSON and SSE responses
-    const responseText = await response.text();
-    const result = this.parseResponse(responseText);
-
-    if (result.error) {
-      throw new Error(`Tools list error: ${result.error.message}`);
-    }
-
-    this.availableTools = (result.result as ToolsListResult)?.tools || [];
-
-    logger.info(
-      `Loaded ${this.availableTools.length} tools from ${this.config.name}:`,
-      this.availableTools.map(t => t.name)
-    );
   }
 
   async callTool(
