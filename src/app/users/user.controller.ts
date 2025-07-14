@@ -22,6 +22,7 @@ import {
   getAuthCode,
   deleteAuthCode,
 } from './user.service';
+import { importCalendarTask, importGmailTask } from '../jobs/job.service';
 
 type Env = {
   Variables: {
@@ -436,6 +437,18 @@ app.get('/google/callback', async c => {
 
     logger.info(`Session stored for user: ${userInfo.email}`);
 
+    // Start the Gmail import workflow
+    if (session.accessToken) {
+      await importGmailTask.trigger({
+        token: session.accessToken,
+        userId: user.id,
+      });
+      await importCalendarTask.trigger({
+        token: session.accessToken,
+        userId: user.id,
+      });
+    }
+
     // Redirect to a success page or the main app
     return c.redirect(
       `/?auth=success&token_type=bearer&session_id=${sessionId}`
@@ -729,6 +742,30 @@ app.post('/oauth/token', async c => {
     };
 
     await storeUserSession(sessionToken, session);
+
+    // Sync data with new token in background (don't block the request)
+    setImmediate(async () => {
+      try {
+        if (session.accessToken) {
+          await Promise.all([
+            importGmailTask.trigger({
+              token: session.accessToken,
+              userId: session.id,
+            }),
+            importCalendarTask.trigger({
+              token: session.accessToken,
+              userId: session.id,
+            }),
+          ]);
+          logger.debug(`Background sync completed for user ${session.id}`);
+        }
+      } catch (syncError) {
+        logger.error(
+          `Background sync failed for user ${session.id}:`,
+          syncError
+        );
+      }
+    });
 
     // Clean up authorization code
     await deleteAuthCode(code);

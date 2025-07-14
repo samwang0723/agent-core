@@ -103,3 +103,4 @@ jspm_packages/
 *.db
 *.db-shm
 *.db-wal
+.trigger

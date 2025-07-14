@@ -20,6 +20,7 @@
     "@mastra/libsql": "^0.11.0",
     "@mastra/memory": "latest",
     "@mastra/pg": "^0.12.1",
+    "@trigger.dev/sdk": "^3.3.17",
     "@types/pg": "^8.15.4",
     "@typescript-eslint/eslint-plugin": "^8.35.1",
     "@typescript-eslint/parser": "^8.35.1",
@@ -32,6 +33,7 @@
     "zod": "^3.25.73"
   },
   "devDependencies": {
+    "@trigger.dev/build": "^3.3.17",
     "@types/bun": "latest",
     "@types/node": "^24.0.10",
     "mastra": "^0.10.12",

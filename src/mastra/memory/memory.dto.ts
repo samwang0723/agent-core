@@ -2,9 +2,9 @@ import { Memory } from '@mastra/memory';
 import { PostgresStore } from '@mastra/pg';
 import { z } from 'zod';
 import logger from '../utils/logger';
-import { MemoryProcessor } from '@mastra/core';
 // import { TokenLimiter, ToolCallFilter } from '@mastra/memory/processors';
-import { LibSQLStore } from '@mastra/libsql';
+import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 // User profile schema for structured working memory
 const userProfileSchema = z.object({
@@ -112,6 +112,14 @@ const createLibSQLStorage = () => {
   return storage;
 };
 
+const createLibSQLVectorStore = () => {
+  const vectorStore = new LibSQLVector({
+    connectionUrl: 'file:./mastra.db',
+  });
+  logger.info('Initialized LibSQL vector store for memory persistence');
+  return vectorStore;
+};
+
 // Singleton instance for Memory to prevent multiple instances
 let memoryInstance: Memory | null = null;
 
@@ -127,25 +135,23 @@ export const createMastraMemory = () => {
     const module = process.env.MASTRA_MEMORY_MODULE || 'libsql';
     const storage =
       module === 'postgres' ? createPostgresStorage() : createLibSQLStorage();
+    const vectorStore =
+      module === 'libsql' ? createLibSQLVectorStore() : undefined;
+    const google = createGoogleGenerativeAI({
+      apiKey: process.env.GOOGLE_API_KEY,
+      headers: {
+        'Accept-Encoding': 'identity',
+      },
+    });
+    const embeddingModel = google.textEmbeddingModel(
+      'gemini-embedding-exp-03-07',
+      {
+        outputDimensionality: 1536, // optional, number of dimensions for the embedding
+        taskType: 'SEMANTIC_SIMILARITY', // optional, specifies the task type for generating embeddings
+      }
+    );
 
-    // Create memory configuration with PostgreSQL storage
-    const memoryConfig: {
-      storage?: PostgresStore | LibSQLStore;
-      options: {
-        lastMessages: number;
-        workingMemory: {
-          enabled: boolean;
-          scope: 'resource' | 'thread';
-          schema: typeof userProfileSchema;
-        };
-        // semanticRecall?: {
-        //   topK: number;
-        //   messageRange: number;
-        //   scope: 'resource' | 'thread';
-        // };
-      };
-      processors: MemoryProcessor[];
-    } = {
+    const memory = new Memory({
       options: {
         lastMessages: 10,
         workingMemory: {
@@ -153,25 +159,21 @@ export const createMastraMemory = () => {
           scope: 'resource', // Enable resource-scoped memory for cross-conversation persistence
           schema: userProfileSchema,
         },
-        // semanticRecall: {
-        //   topK: 3, // Retrieve 3 most similar messages
-        //   messageRange: 2, // Include 2 messages before and after each match
-        //   scope: 'resource', // Search across all threads for this user
-        // },
+        semanticRecall: {
+          topK: 3, // Retrieve 3 most similar messages
+          messageRange: 2, // Include 2 messages before and after each match
+          scope: 'resource', // Search across all threads for this user
+        },
       },
       processors: [
         // Ensure the total tokens from memory don't exceed ~127k
         // new TokenLimiter(127000),
         // new ToolCallFilter(),
       ],
-    };
-
-    // Add PostgreSQL storage if available
-    if (storage) {
-      memoryConfig.storage = storage;
-    }
-
-    const memory = new Memory(memoryConfig);
+      embedder: embeddingModel,
+      storage: storage || undefined,
+      vector: vectorStore,
+    });
 
     // Store the instance for reuse
     memoryInstance = memory;

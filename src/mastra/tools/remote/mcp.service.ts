@@ -169,7 +169,7 @@ export class McpClient {
 
     const googleAuthToken = (
       parameters.runtimeContext as RuntimeContext<UserRuntimeContext>
-    ).get('googleAuthToken');
+    )?.get('googleAuthToken');
 
     // Check if authentication is required
     const needsAuth =

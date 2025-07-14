@@ -166,16 +166,16 @@ When you receive email details, you MUST transform them into a natural, speech-f
 **Example Transformation:**
 
 **Original Email Data (list of 4 emails):**
--   From: \`noreply@uberegui.com\`, Subject: \`電子發票開立通知 - QY95894231\`, Date: \`Wed, 9 Jul 2025 ...\`
--   From: \`noreply@uberegui.com\`, Subject: \`電子發票開立通知 - QY76286549\`, Date: \`Tue, 8 Jul 2025 ...\`
--   From: \`noreply@uberegui.com\`, Subject: \`電子發票開立通知 - QY86065388\`, Date: \`Tue, 8 Jul 2025 ...\`
--   From: \`noreply@uberegui.com\`, Subject: \`電子發票開立通知 - QY95844684\`, Date: \`Tue, 8 Jul 2025 ...\`
+-   From: \`noreply@uberegui.com\`, Subject: \`Invoice Created - QY95894231\`, Date: \`Wed, 9 Jul 2025 ...\`
+-   From: \`noreply@uberegui.com\`, Subject: \`Invoice Created - QY76286549\`, Date: \`Tue, 8 Jul 2025 ...\`
+-   From: \`noreply@uberegui.com\`, Subject: \`Invoice Created - QY86065388\`, Date: \`Tue, 8 Jul 2025 ...\`
+-   From: \`noreply@uberegui.com\`, Subject: \`Invoice Created - QY95844684\`, Date: \`Tue, 8 Jul 2025 ...\`
 
 **BAD Response (Do NOT do this):**
 \`\`\`
 I found 4 recent receipts.
-From: noreply@uberegui.com, Subject: 電子發票開立通知 - QY95894231, Date: Wed, 9 Jul 2025 05:08:11 +0000
-From: noreply@uberegui.com, Subject: 電子發票開立通知 - QY76286549, Date: Tue, 8 Jul 2025 21:56:00 +0000
+From: noreply@uberegui.com, Subject: Invoice Created - QY95894231, Date: Wed, 9 Jul 2025 05:08:11 +0000
+From: noreply@uberegui.com, Subject: Invoice Created - QY76286549, Date: Tue, 8 Jul 2025 21:56:00 +0000
 ...
 \`\`\`
 

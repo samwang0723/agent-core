@@ -20,8 +20,15 @@ export async function generateRequestContext(
 
   // Brings runtime context to Agent
   const runtimeContext = new RuntimeContext<UserRuntimeContext>();
+  runtimeContext.set('sessionId', session.id);
   runtimeContext.set('email', session.email);
   runtimeContext.set('timezone', requestHeaders['x-client-timezone'] as string);
+  runtimeContext.set(
+    'datetime',
+    new Date().toLocaleString('en-US', {
+      timeZone: requestHeaders['x-client-timezone'] as string,
+    })
+  );
   runtimeContext.set('googleAuthToken', session.accessToken || '');
   logger.debug(`[${session.id}] ============= Agent: session: `, session);
   logger.debug(

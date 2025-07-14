@@ -7,6 +7,7 @@ import { ErrorCodes } from '../utils/error-code';
 import { SessionService } from '../users/user.service';
 import { UserService } from '../users/user.service';
 import { toolRegistry } from '../../mastra/tools/registry';
+import { importCalendarTask, importGmailTask } from '../jobs/job.service';
 
 export interface Session {
   id: string;
@@ -166,6 +167,27 @@ export const refreshAccessTokenIfNeeded = async (
     logger.debug(
       `[${userSession.id}] Tool: Access token updated: ${userSession.accessToken}`
     );
+    // Sync data with new token in background (don't block the request)
+    setImmediate(async () => {
+      try {
+        await Promise.all([
+          importGmailTask.trigger({
+            token: userSession.accessToken!,
+            userId: userSession.id,
+          }),
+          importCalendarTask.trigger({
+            token: userSession.accessToken!,
+            userId: userSession.id,
+          }),
+        ]);
+        logger.debug(`Background sync completed for user ${userSession.id}`);
+      } catch (syncError) {
+        logger.error(
+          `Background sync failed for user ${userSession.id}:`,
+          syncError
+        );
+      }
+    });
   } catch (error) {
     logger.error(
       `Failed to refresh access token for user ${userSession.id}:`,
