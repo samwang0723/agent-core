@@ -2,9 +2,7 @@ import { Memory } from '@mastra/memory';
 import { PostgresStore } from '@mastra/pg';
 import { z } from 'zod';
 import logger from '../utils/logger';
-// import { TokenLimiter, ToolCallFilter } from '@mastra/memory/processors';
-import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { LibSQLStore } from '@mastra/libsql';
 
 // User profile schema for structured working memory
 const userProfileSchema = z.object({
@@ -14,30 +12,7 @@ const userProfileSchema = z.object({
   preferences: z
     .object({
       communicationStyle: z.enum(['formal', 'casual', 'technical']).optional(),
-      projectGoal: z.string().optional(),
-      keyDeadlines: z
-        .array(
-          z.object({
-            name: z.string(),
-            date: z.string(),
-          })
-        )
-        .optional(),
       preferredLanguage: z.string().optional(),
-      notificationSettings: z
-        .object({
-          email: z.boolean().optional(),
-          slack: z.boolean().optional(),
-          sms: z.boolean().optional(),
-        })
-        .optional(),
-      workingHours: z
-        .object({
-          start: z.string().optional(),
-          end: z.string().optional(),
-          timezone: z.string().optional(),
-        })
-        .optional(),
     })
     .optional(),
   sessionState: z
@@ -112,14 +87,6 @@ const createLibSQLStorage = () => {
   return storage;
 };
 
-const createLibSQLVectorStore = () => {
-  const vectorStore = new LibSQLVector({
-    connectionUrl: 'file:./mastra.db',
-  });
-  logger.info('Initialized LibSQL vector store for memory persistence');
-  return vectorStore;
-};
-
 // Singleton instance for Memory to prevent multiple instances
 let memoryInstance: Memory | null = null;
 
@@ -131,91 +98,36 @@ export const createMastraMemory = () => {
     return memoryInstance;
   }
 
-  try {
-    const module = process.env.MASTRA_MEMORY_MODULE || 'libsql';
-    const storage =
-      module === 'postgres' ? createPostgresStorage() : createLibSQLStorage();
-    const vectorStore =
-      module === 'libsql' ? createLibSQLVectorStore() : undefined;
-    const google = createGoogleGenerativeAI({
-      apiKey: process.env.GOOGLE_API_KEY,
-      headers: {
-        'Accept-Encoding': 'identity',
+  const module = process.env.MASTRA_MEMORY_MODULE || 'libsql';
+  const storage =
+    module === 'postgres' ? createPostgresStorage() : createLibSQLStorage();
+
+  const memory = new Memory({
+    options: {
+      lastMessages: 10,
+      workingMemory: {
+        enabled: true,
+        scope: 'resource', // Enable resource-scoped memory for cross-conversation persistence
+        schema: userProfileSchema,
       },
-    });
-    const embeddingModel = google.textEmbeddingModel(
-      'gemini-embedding-exp-03-07',
-      {
-        outputDimensionality: 1536, // optional, number of dimensions for the embedding
-        taskType: 'SEMANTIC_SIMILARITY', // optional, specifies the task type for generating embeddings
-      }
+    },
+    storage: storage || undefined,
+  });
+
+  // Store the instance for reuse
+  memoryInstance = memory;
+
+  if (storage) {
+    logger.info(
+      'Successfully initialized Mastra Memory singleton with PostgreSQL persistence'
     );
-
-    const memory = new Memory({
-      options: {
-        lastMessages: 10,
-        workingMemory: {
-          enabled: true,
-          scope: 'resource', // Enable resource-scoped memory for cross-conversation persistence
-          schema: userProfileSchema,
-        },
-        semanticRecall: {
-          topK: 3, // Retrieve 3 most similar messages
-          messageRange: 2, // Include 2 messages before and after each match
-          scope: 'resource', // Search across all threads for this user
-        },
-      },
-      processors: [
-        // Ensure the total tokens from memory don't exceed ~127k
-        // new TokenLimiter(127000),
-        // new ToolCallFilter(),
-      ],
-      embedder: embeddingModel,
-      storage: storage || undefined,
-      vector: vectorStore,
-    });
-
-    // Store the instance for reuse
-    memoryInstance = memory;
-
-    if (storage) {
-      logger.info(
-        'Successfully initialized Mastra Memory singleton with PostgreSQL persistence'
-      );
-    } else {
-      logger.warn(
-        'Initialized Mastra Memory singleton without persistent storage'
-      );
-    }
-
-    return memory;
-  } catch (error) {
-    logger.error('Failed to initialize Mastra Memory with PostgreSQL:', error);
-
-    // Fallback to in-memory storage
+  } else {
     logger.warn(
-      'Falling back to in-memory storage - data will not persist between sessions'
+      'Initialized Mastra Memory singleton without persistent storage'
     );
-    const fallbackMemory = new Memory({
-      options: {
-        lastMessages: 10,
-        workingMemory: {
-          enabled: true,
-          scope: 'resource',
-          schema: userProfileSchema,
-        },
-        // semanticRecall: {
-        //   topK: 3, // Retrieve 3 most similar messages
-        //   messageRange: 2, // Include 2 messages before and after each match
-        //   scope: 'resource', // Search across all threads for this user
-        // },
-      },
-    });
-
-    // Store the fallback instance for reuse
-    memoryInstance = fallbackMemory;
-    return fallbackMemory;
   }
+
+  return memory;
 };
 
 // Resource ID and Thread ID patterns for user-specific memory scoping

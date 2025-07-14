@@ -10,6 +10,8 @@ import { memoryPatterns } from '../../mastra/memory/memory.dto';
 import { messageHistory } from './history.service';
 import { generateRequestContext } from './conversation.service';
 import { mastra } from '../../mastra';
+// import { createModelByKey } from '../../mastra/models/model.service';
+// import { streamText } from 'ai';
 
 type Env = {
   Variables: {
@@ -141,7 +143,6 @@ app.post('/stream', requireAuth, async c => {
         );
 
         logger.info(`[${user.id}] Agent: Using vNext network`);
-
         const streamStartTime = performance.now();
         const networkResult = await network.stream(
           `${contextMessage.content} ${message}`,
