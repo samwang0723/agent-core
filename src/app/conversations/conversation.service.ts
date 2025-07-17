@@ -4,6 +4,12 @@ import { UserRuntimeContext } from '../../mastra/utils/context';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import { CoreMessage } from '@mastra/core';
 import logger from '../utils/logger';
+import {
+  detectLocale,
+  createLocaleSystemMessage,
+  getLocaleName,
+  SupportedLocale,
+} from '../utils/locale';
 
 // Context cache with 60-second TTL
 interface CachedContext {
@@ -50,13 +56,16 @@ export async function generateRequestContext(
 ): Promise<{
   runtimeContext: RuntimeContext<UserRuntimeContext>;
   contextMessage: CoreMessage;
+  locale: SupportedLocale;
+  localeSystemMessage: string;
 }> {
   // Check cache for user context
   const cacheKey = `${session.id}_${session.email}`;
   let cachedUserData = getCachedData(cacheKey);
 
-  // Extract only essential headers
+  // Extract essential headers and detect locale
   const timezone = context.req.header('x-client-timezone') || 'UTC';
+  const locale = detectLocale(context);
 
   // Parallel processing of independent operations
   const [runtimeContext, formattedDateTime] = await Promise.all([
@@ -67,6 +76,7 @@ export async function generateRequestContext(
         ctx.set('sessionId', session.id);
         ctx.set('email', session.email);
         ctx.set('timezone', timezone);
+        ctx.set('locale', locale);
         ctx.set('googleAuthToken', session.accessToken || '');
         return ctx;
       })()
@@ -84,6 +94,7 @@ export async function generateRequestContext(
     cachedUserData = {
       name: session.name,
       timezone: timezone,
+      locale: locale,
     };
     setCachedData(cacheKey, cachedUserData);
   }
@@ -91,9 +102,16 @@ export async function generateRequestContext(
   logger.debug(`[${session.id}] Agent session initialized`);
   logger.debug(`[${session.id}] Runtime context ready`);
 
+  // Create locale system message for AI responses
+  const localeSystemMessage = createLocaleSystemMessage(locale);
+
   // Create concise context message with truncation
   const contextMessage = truncateContext(
-    `[Context: ${formattedDateTime} ${timezone}. User: ${cachedUserData.name}]`
+    `[Context: ${formattedDateTime} ${timezone}. User: ${cachedUserData.name}. ALWAYS respond with Language locale: ${getLocaleName(locale)}]`
+  );
+
+  logger.debug(
+    `[${session.id}] Locale detected: ${locale} (${getLocaleName(locale)})`
   );
 
   return {
@@ -102,5 +120,7 @@ export async function generateRequestContext(
       role: 'system',
       content: contextMessage,
     },
+    locale,
+    localeSystemMessage,
   };
 }

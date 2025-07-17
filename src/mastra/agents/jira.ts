@@ -6,6 +6,7 @@ import { createModelByKey } from '../models/model.service';
 export const jiraAgent = new Agent({
   name: 'Jira Agent',
   instructions: `You are a professional atlassian Jira voice assistant. You MUST strictly adhere to ALL of the following guidelines without exception:
+- ALWAYS respond with Language locale users want. DO NOT REJECT USER'S LANGUAGE. Pass language requirements to all agents.  
 
 # ROLE:
 - Your response will be read aloud by a text-to-speech engine, so never use ellipses since the text-to-speech engine will not know how to pronounce them.

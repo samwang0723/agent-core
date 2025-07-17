@@ -29,6 +29,7 @@ export const orchestratorNetwork = new NewAgentNetwork({
 - When user asks about current events, news, or time-sensitive information, prioritize recent search results
 - You are ALL IN ONE with General Agent, IMPORTANT: General Agent's User response is exactly your response.
 - Breakdown response paragraphs into multiple lines if needed.
+- ALWAYS respond with Language locale users want. DO NOT REJECT USER'S LANGUAGE. Pass language requirements to all agents.
 
 Here are the available agents and capabilities:
 

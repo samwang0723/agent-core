@@ -117,10 +117,8 @@ app.post('/stream', requireAuth, async c => {
 
       // Detailed timing instrumentation
       const contextStartTime = performance.now();
-      const { runtimeContext, contextMessage } = await generateRequestContext(
-        user,
-        c
-      );
+      const { runtimeContext, contextMessage, locale, localeSystemMessage } =
+        await generateRequestContext(user, c);
       const contextEndTime = performance.now();
       logger.info(
         `[${user.id}] Context generation took ${(contextEndTime - contextStartTime).toFixed(2)} ms`
@@ -142,10 +140,12 @@ app.post('/stream', requireAuth, async c => {
           `[${user.id}] vNext network retrieval took ${(networkEndTime - networkStartTime).toFixed(2)} ms`
         );
 
-        logger.info(`[${user.id}] Agent: Using vNext network`);
+        logger.info(
+          `[${user.id}] Agent: Using vNext network (locale: ${locale})`
+        );
         const streamStartTime = performance.now();
         const networkResult = await network.stream(
-          `${contextMessage.content} ${message}`,
+          `${localeSystemMessage}\n\n${contextMessage.content} ${message}`,
           {
             resourceId,
             threadId,
@@ -220,7 +220,7 @@ app.post('/stream', requireAuth, async c => {
           `[${user.id}] Intent detection took ${(intentEndTime - intentStartTime).toFixed(2)} ms`
         );
         logger.info(`[${user.id}] Agent: Intent Result: `, result);
-        logger.info(`[${user.id}] Agent: Using agent`);
+        logger.info(`[${user.id}] Agent: Using agent (locale: ${locale})`);
 
         const agentStreamStartTime = performance.now();
         const streamResult = await result.suitableAgent!.stream(message, {
@@ -236,7 +236,10 @@ app.post('/stream', requireAuth, async c => {
             );
           },
           runtimeContext,
-          context: [contextMessage],
+          context: [
+            { role: 'system', content: localeSystemMessage },
+            contextMessage,
+          ],
         });
         const agentStreamEndTime = performance.now();
         logger.info(
@@ -385,10 +388,8 @@ app.post('/', requireAuth, async c => {
 
   // Context generation with timing
   const contextStartTime = performance.now();
-  const { runtimeContext, contextMessage } = await generateRequestContext(
-    user,
-    c
-  );
+  const { runtimeContext, contextMessage, locale, localeSystemMessage } =
+    await generateRequestContext(user, c);
   const contextEndTime = performance.now();
   logger.info(
     `[${user.id}] Context generation took ${(contextEndTime - contextStartTime).toFixed(2)} ms`
@@ -410,12 +411,12 @@ app.post('/', requireAuth, async c => {
       );
 
       logger.info(
-        `[${user.id}] Agent: Using vNext network: ${contextMessage.content} ${message}`
+        `[${user.id}] Agent: Using vNext network (locale: ${locale}): ${contextMessage.content} ${message}`
       );
 
       const generateStartTime = performance.now();
       const response = await network.generate(
-        `${contextMessage.content} ${message}`,
+        `${localeSystemMessage}\n\n${contextMessage.content} ${message}`,
         {
           resourceId,
           threadId,
@@ -449,7 +450,10 @@ app.post('/', requireAuth, async c => {
           maxSteps: 10,
           maxTokens: 800,
           runtimeContext,
-          context: [contextMessage],
+          context: [
+            { role: 'system', content: localeSystemMessage },
+            contextMessage,
+          ],
         });
         const generateEndTime = performance.now();
         const totalDuration = generateEndTime - requestStartTime;

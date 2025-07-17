@@ -3,5 +3,6 @@ export type UserRuntimeContext = {
   email: string;
   datetime: string;
   timezone: string;
+  locale: string;
   googleAuthToken: string;
 };

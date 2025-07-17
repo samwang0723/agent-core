@@ -29,6 +29,8 @@ app.use(
       'Authorization',
       'X-Client-Timezone',
       'X-Client-Datetime',
+      'X-Locale',
+      'Accept-Language',
     ],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     credentials: true,

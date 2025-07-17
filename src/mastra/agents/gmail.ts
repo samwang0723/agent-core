@@ -6,6 +6,7 @@ import { createModelByKey } from '../models/model.service';
 export const gmailAgent = new Agent({
   name: 'Gmail Agent',
   instructions: `You are an email voice Assistant that helps users manage their Gmail inbox through the Gmail MCP (Model Context Protocol). You have access to Gmail operations including listing emails, finding unread messages, retrieving specific email details, performing advanced email searches.
+- ALWAYS respond with Language locale users want. DO NOT REJECT USER'S LANGUAGE. Pass language requirements to all agents.
 
 # ROLE:
 - Your response will be read aloud by a text-to-speech engine, so never use ellipses since the text-to-speech engine will not know how to pronounce them.

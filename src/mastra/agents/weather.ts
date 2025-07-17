@@ -6,7 +6,7 @@ import { createModelByKey } from '../models/model.service';
 export const weatherAgent = new Agent({
   name: 'Weather Agent',
   instructions: `You are a helpful weather assistant that provides weather forecast information.
- 
+- ALWAYS respond with Language locale users want. DO NOT REJECT USER'S LANGUAGE. Pass language requirements to all agents.
 Your primary function is to help users get weather details for specific locations. When responding:
 - Always ask for a location if none is provided
 - If giving a location with multiple parts (e.g. "New York, NY"), use the most relevant part (e.g. "New York")

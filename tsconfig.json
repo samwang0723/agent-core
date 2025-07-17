@@ -12,9 +12,6 @@
     "noEmit": true,
     "outDir": "dist"
   },
-  "include": [
-    "src/**/*",
-    "trigger.config.ts"
-  ],
+  "include": ["src/**/*", "trigger.config.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
