@@ -2,7 +2,11 @@
 // Run with: bun test src/app/utils/locale.test.ts
 
 import { describe, it, expect } from 'bun:test';
-import { detectLocale, createLocaleSystemMessage, getLocaleName } from './locale';
+import {
+  detectLocale,
+  createLocaleSystemMessage,
+  getLocaleName,
+} from './locale';
 
 describe('Locale Utils', () => {
   it('should detect locale from query parameters', () => {
