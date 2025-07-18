@@ -2,7 +2,8 @@ import logger from '../utils/logger';
 import { GmailService } from '../emails';
 import { embeddingService } from '../embeddings';
 import { CalendarService } from '../calendar';
-import { task, wait } from '@trigger.dev/sdk/v3';
+import { task, wait, schedules } from '@trigger.dev/sdk/v3';
+import { getActiveUsersWithGoogleIntegration } from '../users/user.repository';
 
 export const importGmailTask = task({
   id: 'import-gmail',
@@ -137,3 +138,105 @@ async function importCalendar(token: string, userId: string): Promise<string> {
     throw new Error('Failed to import Calendar events');
   }
 }
+
+export const syncGmailCronTask = schedules.task({
+  id: 'sync-gmail-cron',
+  maxDuration: 1800,
+  cron: '*/10 * * * *',
+  run: async (payload, { ctx }) => {
+    logger.info('Starting scheduled Gmail sync for all users...', { ctx });
+
+    try {
+      const activeUsers = await getActiveUsersWithGoogleIntegration();
+      logger.info(
+        `Found ${activeUsers.length} active users with Google integration`
+      );
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const user of activeUsers) {
+        try {
+          await importGmail(user.access_token, user.user_id);
+          successCount++;
+          logger.info(`Successfully synced Gmail for user ${user.user_id}`);
+        } catch (error) {
+          errorCount++;
+          logger.error(`Failed to sync Gmail for user ${user.user_id}`, {
+            error: error instanceof Error ? error.message : String(error),
+            userId: user.user_id,
+          });
+        }
+
+        await wait.for({ seconds: 1 });
+      }
+
+      logger.info(
+        `Gmail sync completed: ${successCount} successful, ${errorCount} errors`
+      );
+
+      return {
+        message: `Gmail sync completed: ${successCount} successful, ${errorCount} errors`,
+        successCount,
+        errorCount,
+        totalUsers: activeUsers.length,
+      };
+    } catch (error) {
+      logger.error('Error in scheduled Gmail sync', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  },
+});
+
+export const syncCalendarCronTask = schedules.task({
+  id: 'sync-calendar-cron',
+  cron: '*/10 * * * *',
+  maxDuration: 1800,
+  run: async (payload, { ctx }) => {
+    logger.info('Starting scheduled Calendar sync for all users...', { ctx });
+
+    try {
+      const activeUsers = await getActiveUsersWithGoogleIntegration();
+      logger.info(
+        `Found ${activeUsers.length} active users with Google integration`
+      );
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const user of activeUsers) {
+        try {
+          await importCalendar(user.access_token, user.user_id);
+          successCount++;
+          logger.info(`Successfully synced Calendar for user ${user.user_id}`);
+        } catch (error) {
+          errorCount++;
+          logger.error(`Failed to sync Calendar for user ${user.user_id}`, {
+            error: error instanceof Error ? error.message : String(error),
+            userId: user.user_id,
+          });
+        }
+
+        await wait.for({ seconds: 1 });
+      }
+
+      logger.info(
+        `Calendar sync completed: ${successCount} successful, ${errorCount} errors`
+      );
+
+      return {
+        message: `Calendar sync completed: ${successCount} successful, ${errorCount} errors`,
+        successCount,
+        errorCount,
+        totalUsers: activeUsers.length,
+      };
+    } catch (error) {
+      logger.error('Error in scheduled Calendar sync', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  },
+});

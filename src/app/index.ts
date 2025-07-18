@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { serveStatic } from 'hono/bun';
+// import { serveStatic } from 'hono/bun';
 import { apiRouter } from './api/routes';
 import logger from './utils/logger';
 import { ApiError } from './utils/api-error';
@@ -13,7 +13,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 // Middleware
 // Add cookie parser middleware - Hono has built-in cookie helpers, no middleware needed.
 // For serving a simple web interface
-app.use('/*', serveStatic({ root: './public' }));
+// app.use('/*', serveStatic({ root: './public' }));
 // app.use('/favicon.ico', serveStatic({ path: './public/favicon.ico' }));
 
 // CORS middleware

@@ -140,3 +140,21 @@ export const deleteIntegration = async (
     provider,
   ]);
 };
+
+export const getActiveUsersWithGoogleIntegration = async (): Promise<
+  Array<{ user_id: string; access_token: string; refresh_token?: string }>
+> => {
+  const result = await query<{
+    user_id: string;
+    access_token: string;
+    refresh_token?: string;
+  }>(
+    `SELECT user_id, access_token, refresh_token 
+     FROM integrations 
+     WHERE provider = 'google' 
+     AND access_token IS NOT NULL 
+     AND (expires_at IS NULL OR expires_at > NOW())`,
+    []
+  );
+  return result.rows;
+};
