@@ -10,8 +10,6 @@ import {
   weatherAgent,
   generalAgent,
   redditAgent,
-  musicAgent,
-  portfolioAgent,
 } from '../agents/index';
 import { mastraMemoryService } from '../memory/memory.service';
 
@@ -73,22 +71,6 @@ Here are the available agents and capabilities:
   - Example: "find me a hot topics on the reddit"
   - Example: "search F1 recent posts on the reddit"
 
-- \`Music Agent\`: Use for searching and playing music. This includes searching for songs, albums, artists, and adjusting the volume, finding the current track, and playing the next track.
-  - Example: "play the song by Taylor Swift"
-  - Example: "play the song by the artist Drake"
-  - Example: "search for song Hey Jude and play it"
-  - Example: "play the song Hey Jude"
-  - Example: "Adjust the volume louder"
-  - Example: "Pause the music"
-  - Example: "check next track"
-  - Example: "play some music"
-
-- \`Portfolio Agent\`: Use for retrieving and displaying portfolio information from the local webhook service. This includes checking investment holdings, portfolio performance, and financial data.
-  - Example: "show me my portfolio"
-  - Example: "what's in my investment portfolio"
-  - Example: "check my portfolio performance"
-  - Example: "display my current holdings"
-
 ## CRITICAL SILENT OPERATION RULES:
 - ABSOLUTELY NO intermediate text output while using tools
 - NEVER mention what you are searching for or doing
@@ -119,8 +101,6 @@ Route the user's request to the most appropriate agent or workflow.`,
     jiraAgent,
     restaurantAgent,
     redditAgent,
-    musicAgent,
-    portfolioAgent,
   },
   memory: mastraMemoryService.getMemory(),
 });
