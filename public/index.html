@@ -6,6 +6,7 @@
     <title>Agent Core</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <style>
       * {
         box-sizing: border-box;
@@ -582,6 +583,137 @@
         color: rgba(255, 255, 255, 0.7);
       }
 
+      /* Event Notification Styles */
+      .notification-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        max-width: 400px;
+        pointer-events: none;
+      }
+
+      .notification {
+        background: white;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+        border-left: 4px solid #667eea;
+        animation: slideIn 0.3s ease-out;
+        pointer-events: auto;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .notification:hover {
+        transform: translateX(-4px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+      }
+
+      .notification.high-priority {
+        border-left-color: #f59e0b;
+      }
+
+      .notification.urgent {
+        border-left-color: #ef4444;
+        background: #fef2f2;
+      }
+
+      .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 8px;
+      }
+
+      .notification-title {
+        font-weight: 600;
+        font-size: 14px;
+        color: #1f2937;
+        margin: 0;
+        flex: 1;
+      }
+
+      .notification-time {
+        font-size: 12px;
+        color: #6b7280;
+        margin-left: 8px;
+        flex-shrink: 0;
+      }
+
+      .notification-content {
+        font-size: 13px;
+        color: #4b5563;
+        line-height: 1.4;
+        margin: 0;
+      }
+
+      .notification-close {
+        background: none;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        padding: 0;
+        margin-left: 8px;
+      }
+
+      .notification-close:hover {
+        color: #6b7280;
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+      }
+
+      .notification.removing {
+        animation: slideOut 0.3s ease-out forwards;
+      }
+
+      .event-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 8px;
+      }
+
+      .event-status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #10b981;
+      }
+
+      .event-status-indicator.disconnected {
+        background: #ef4444;
+      }
+
+      .event-status-indicator.connecting {
+        background: #f59e0b;
+      }
+
       /* Header Styles */
       .header-section {
         display: flex;
@@ -905,6 +1037,9 @@
     </style>
   </head>
   <body>
+    <!-- Event Notification Container -->
+    <div class="notification-container" id="notificationContainer"></div>
+    
     <div class="container">
       <!-- Header with Title and Authentication -->
       <header class="header-section" id="authSection">
@@ -956,6 +1091,10 @@
               <button onclick="clearHistory()" id="clearBtn" class="action-btn">
                 Clear
               </button>
+              <div class="event-status">
+                <div class="event-status-indicator connecting" id="eventStatusIndicator"></div>
+                <span id="eventStatusText">Connecting...</span>
+              </div>
               <button onclick="logout()" class="logout-btn">Logout</button>
             </div>
           </div>
@@ -1060,6 +1199,9 @@
             updateAuthUI();
             updateStatus('Logged out successfully', 'success');
 
+            // Clean up Pusher connection
+            cleanupPusher();
+
             // Clear chat
             document.getElementById('chatContainer').innerHTML = '';
             document.getElementById('latencyIndicator').style.display = 'none';
@@ -1098,6 +1240,9 @@
 
             // Pre-warm the Core and load history concurrently
             await Promise.all([initializeCore(), loadChatHistory()]);
+            
+            // Initialize Pusher for real-time notifications
+            initializePusher();
           } else {
             await handleAuthError(response);
           }
@@ -1908,6 +2053,254 @@
           }
         });
       });
+
+      // Pusher Event Handling for Real-time Notifications
+      let pusher = null;
+      let userChannel = null;
+      let eventConnectionRetries = 0;
+      const MAX_EVENT_RETRIES = 5;
+      const RETRY_DELAY = 2000; // 2 seconds
+
+      async function initializePusher() {
+        if (!currentUser || pusher) {
+          return;
+        }
+
+        console.log('Initializing Pusher connection...');
+        updateEventStatus('connecting', 'Connecting...');
+
+        try {
+          // Get Pusher configuration from backend
+          const configResponse = await apiCall('/api/v1/events/config');
+          if (!configResponse.ok) {
+            throw new Error('Failed to get Pusher configuration');
+          }
+          
+          const config = await configResponse.json();
+          console.log('Pusher config received:', { key: config.key, cluster: config.cluster });
+
+          // Initialize Pusher
+          pusher = new Pusher(config.key, {
+            cluster: config.cluster,
+            encrypted: true,
+            authEndpoint: '/api/v1/events/auth',
+            auth: {
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            }
+          });
+
+          // Get user's channel information
+          const channelResponse = await apiCall('/api/v1/events/channel');
+          if (!channelResponse.ok) {
+            throw new Error('Failed to get channel information');
+          }
+          
+          const channelInfo = await channelResponse.json();
+          console.log('Channel info received:', channelInfo);
+
+          // Subscribe to user's private channel
+          userChannel = pusher.subscribe(channelInfo.channel);
+
+          // Handle connection events
+          pusher.connection.bind('connected', function() {
+            console.log('Pusher connected');
+            updateEventStatus('connected', 'Connected');
+            eventConnectionRetries = 0;
+          });
+
+          pusher.connection.bind('disconnected', function() {
+            console.log('Pusher disconnected');
+            updateEventStatus('disconnected', 'Disconnected');
+          });
+
+          pusher.connection.bind('error', function(error) {
+            console.error('Pusher connection error:', error);
+            updateEventStatus('disconnected', 'Connection error');
+            handlePusherError();
+          });
+
+          // Handle channel subscription events
+          userChannel.bind('pusher:subscription_succeeded', function() {
+            console.log('Successfully subscribed to user channel');
+            updateEventStatus('connected', 'Connected');
+          });
+
+          userChannel.bind('pusher:subscription_error', function(error) {
+            console.error('Channel subscription error:', error);
+            updateEventStatus('disconnected', 'Subscription failed');
+            handlePusherError();
+          });
+
+          // Bind to specific event types
+          userChannel.bind('gmail_important_email', function(data) {
+            console.log('Important email event:', data);
+            showNotification({
+              type: 'email',
+              title: 'Important Email',
+              content: `${data.subject} from ${data.fromAddress}`,
+              priority: data.priority,
+              timestamp: new Date(data.timestamp)
+            });
+          });
+
+          userChannel.bind('calendar_upcoming_event', function(data) {
+            console.log('Upcoming calendar event:', data);
+            const timeText = data.timeUntilStart <= 15 ? 'starting soon' : `in ${data.timeUntilStart} minutes`;
+            showNotification({
+              type: 'calendar',
+              title: 'Upcoming Event',
+              content: `${data.title} ${timeText}`,
+              priority: data.priority,
+              timestamp: new Date(data.timestamp)
+            });
+          });
+
+          userChannel.bind('calendar_new_event', function(data) {
+            console.log('New calendar event:', data);
+            showNotification({
+              type: 'calendar',
+              title: 'New Event Added',
+              content: `${data.title} on ${new Date(data.startTime).toLocaleDateString()}`,
+              priority: data.priority,
+              timestamp: new Date(data.timestamp)
+            });
+          });
+
+          userChannel.bind('system_notification', function(data) {
+            console.log('System notification:', data);
+            showNotification({
+              type: 'system',
+              title: data.title || 'System Notification',
+              content: data.message,
+              priority: 'medium',
+              timestamp: new Date(data.timestamp)
+            });
+          });
+
+          userChannel.bind('chat_message', function(data) {
+            console.log('Proactive chat message:', data);
+            // Add the message to the chat interface as an assistant message
+            addMessage(data.message, false, false, data.timestamp);
+          });
+
+        } catch (error) {
+          console.error('Failed to initialize Pusher:', error);
+          updateEventStatus('disconnected', 'Failed to connect');
+          handlePusherError();
+        }
+      }
+
+      function handlePusherError() {
+        if (eventConnectionRetries < MAX_EVENT_RETRIES) {
+          eventConnectionRetries++;
+          console.log(`Retrying Pusher connection (${eventConnectionRetries}/${MAX_EVENT_RETRIES})...`);
+          setTimeout(() => {
+            disconnectPusher();
+            initializePusher();
+          }, RETRY_DELAY * eventConnectionRetries);
+        } else {
+          console.error('Max Pusher connection retries reached');
+          updateEventStatus('disconnected', 'Connection failed');
+        }
+      }
+
+      function disconnectPusher() {
+        if (userChannel) {
+          userChannel.unbind_all();
+          pusher.unsubscribe(userChannel.name);
+          userChannel = null;
+        }
+        
+        if (pusher) {
+          pusher.disconnect();
+          pusher = null;
+        }
+        
+        updateEventStatus('disconnected', 'Disconnected');
+      }
+
+      function updateEventStatus(status, text) {
+        const indicator = document.getElementById('eventStatusIndicator');
+        const statusText = document.getElementById('eventStatusText');
+        
+        if (indicator) {
+          indicator.className = `event-status-indicator ${status}`;
+        }
+        if (statusText) {
+          statusText.textContent = text;
+        }
+      }
+
+      function handleGenericEvent(data) {
+        console.log('Generic event received:', data);
+        // Handle any generic events that don't have specific handlers
+      }
+
+      function showNotification(options) {
+        const { type, title, content, priority, timestamp } = options;
+        
+        const container = document.getElementById('notificationContainer');
+        if (!container) return;
+
+        const notification = document.createElement('div');
+        notification.className = `notification ${priority || 'medium'}`;
+        
+        const timeString = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+        
+        notification.innerHTML = `
+          <div class="notification-header">
+            <h4 class="notification-title">${title}</h4>
+            <span class="notification-time">${timeString}</span>
+            <button class="notification-close" onclick="dismissNotification(this)">×</button>
+          </div>
+          <p class="notification-content">${content}</p>
+        `;
+        
+        container.appendChild(notification);
+        
+        // Auto-dismiss after 10 seconds for non-urgent notifications
+        if (priority !== 'urgent') {
+          setTimeout(() => {
+            dismissNotification(notification.querySelector('.notification-close'));
+          }, 10000);
+        }
+        
+        // Add click handler to notification
+        notification.addEventListener('click', function() {
+          if (type === 'email') {
+            // Could open email in chat or external app
+            console.log('Email notification clicked');
+          } else if (type === 'calendar') {
+            // Could open calendar or show event details
+            console.log('Calendar notification clicked');
+          }
+        });
+      }
+
+      function dismissNotification(closeButton) {
+        const notification = closeButton.closest('.notification');
+        if (notification) {
+          notification.classList.add('removing');
+          setTimeout(() => {
+            notification.remove();
+          }, 300);
+        }
+      }
+
+      // Initialize Pusher when user is authenticated
+      function initializePusherIfAuthenticated() {
+        if (currentUser && !pusher) {
+          initializePusher();
+        }
+      }
+
+      // Clean up Pusher connection on logout
+      function cleanupPusher() {
+        disconnectPusher();
+        eventConnectionRetries = 0;
+      }
     </script>
   </body>
 </html>

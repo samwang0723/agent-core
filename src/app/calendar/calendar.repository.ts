@@ -99,3 +99,16 @@ export const getCalendarEventsByTimeRange = async (
     end_time: string;
   }[];
 };
+
+export const getExistingCalendarEventIds = async (
+  userId: string
+): Promise<Set<string>> => {
+  const text = `
+    SELECT google_event_id 
+    FROM calendar_events 
+    WHERE user_id = $1
+  `;
+
+  const result = await query(text, [userId]);
+  return new Set(result.rows.map(row => row.google_event_id));
+};

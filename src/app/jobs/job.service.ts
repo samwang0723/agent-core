@@ -4,6 +4,8 @@ import { embeddingService } from '../embeddings';
 import { CalendarService } from '../calendar';
 import { task, wait, schedules } from '@trigger.dev/sdk/v3';
 import { getActiveUsersWithGoogleIntegration } from '../users/user.repository';
+import { EventDetector } from '../events/event.detector';
+import { eventBroadcaster } from '../events/event.service';
 
 export const importGmailTask = task({
   id: 'import-gmail',
@@ -55,6 +57,26 @@ async function importGmail(token: string, userId: string): Promise<string> {
       logger.info(
         `Successfully created embeddings for ${insertedEmails.length} emails.`
       );
+
+      // Detect and broadcast important email events
+      try {
+        const importantEmailEvents = EventDetector.detectImportantEmails(insertedEmails);
+        
+        for (const event of importantEmailEvents) {
+          await eventBroadcaster.broadcastEvent(event);
+        }
+        
+        if (importantEmailEvents.length > 0) {
+          logger.info(
+            `Broadcasted ${importantEmailEvents.length} important email events for user ${userId}`
+          );
+        }
+      } catch (error) {
+        logger.error('Error detecting/broadcasting email events', {
+          error: error instanceof Error ? error.message : String(error),
+          userId,
+        });
+      }
     } else {
       logger.info('No new emails to process in the background.');
     }
@@ -94,6 +116,11 @@ async function importCalendar(token: string, userId: string): Promise<string> {
     logger.info('Fetching and storing calendar events in the background...');
     const calendarService = new CalendarService();
     await calendarService.initialize(token);
+    
+    // Get existing calendar event IDs to detect new events
+    const { getExistingCalendarEventIds } = await import('../calendar/calendar.repository');
+    const existingEventIds = await getExistingCalendarEventIds(userId);
+    
     const eventResponse = await calendarService.getCalendarEvents();
     const events = eventResponse.events || [];
 
@@ -123,6 +150,30 @@ async function importCalendar(token: string, userId: string): Promise<string> {
       logger.info(
         `Successfully created embeddings for ${insertedEvents.length} events.`
       );
+
+      // Detect and broadcast calendar events
+      try {
+        const calendarEvents = EventDetector.detectCalendarEvents(
+          userId,
+          insertedEvents,
+          existingEventIds
+        );
+        
+        for (const event of calendarEvents) {
+          await eventBroadcaster.broadcastEvent(event);
+        }
+        
+        if (calendarEvents.length > 0) {
+          logger.info(
+            `Broadcasted ${calendarEvents.length} calendar events for user ${userId}`
+          );
+        }
+      } catch (error) {
+        logger.error('Error detecting/broadcasting calendar events', {
+          error: error instanceof Error ? error.message : String(error),
+          userId,
+        });
+      }
     } else {
       logger.info('No new calendar events to process in the background.');
     }
