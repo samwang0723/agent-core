@@ -60,12 +60,13 @@ async function importGmail(token: string, userId: string): Promise<string> {
 
       // Detect and broadcast important email events
       try {
-        const importantEmailEvents = EventDetector.detectImportantEmails(insertedEmails);
-        
+        const importantEmailEvents =
+          EventDetector.detectImportantEmails(insertedEmails);
+
         for (const event of importantEmailEvents) {
           await eventBroadcaster.broadcastEvent(event);
         }
-        
+
         if (importantEmailEvents.length > 0) {
           logger.info(
             `Broadcasted ${importantEmailEvents.length} important email events for user ${userId}`
@@ -116,11 +117,13 @@ async function importCalendar(token: string, userId: string): Promise<string> {
     logger.info('Fetching and storing calendar events in the background...');
     const calendarService = new CalendarService();
     await calendarService.initialize(token);
-    
+
     // Get existing calendar event IDs to detect new events
-    const { getExistingCalendarEventIds } = await import('../calendar/calendar.repository');
+    const { getExistingCalendarEventIds } = await import(
+      '../calendar/calendar.repository'
+    );
     const existingEventIds = await getExistingCalendarEventIds(userId);
-    
+
     const eventResponse = await calendarService.getCalendarEvents();
     const events = eventResponse.events || [];
 
@@ -158,11 +161,11 @@ async function importCalendar(token: string, userId: string): Promise<string> {
           insertedEvents,
           existingEventIds
         );
-        
+
         for (const event of calendarEvents) {
           await eventBroadcaster.broadcastEvent(event);
         }
-        
+
         if (calendarEvents.length > 0) {
           logger.info(
             `Broadcasted ${calendarEvents.length} calendar events for user ${userId}`
@@ -219,7 +222,7 @@ export const syncGmailCronTask = schedules.task({
           });
         }
 
-        await wait.for({ seconds: 1 });
+        await wait.for({ seconds: 10 });
       }
 
       logger.info(
@@ -270,7 +273,7 @@ export const syncCalendarCronTask = schedules.task({
           });
         }
 
-        await wait.for({ seconds: 1 });
+        await wait.for({ seconds: 10 });
       }
 
       logger.info(

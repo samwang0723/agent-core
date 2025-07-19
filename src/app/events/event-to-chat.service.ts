@@ -104,8 +104,8 @@ export class EventToChatService {
       const response = await generalAgent.generate(prompt, {
         resourceId,
         threadId,
-        maxRetries: 0,
-        maxSteps: 5,
+        maxRetries: 2,
+        maxSteps: 2,
         maxTokens: 200, // Keep responses concise
       });
 
