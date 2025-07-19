@@ -47,7 +47,9 @@ export class PusherEventBroadcaster {
       await this.eventStorage.storeEvent(event);
 
       // Add process identification for debugging cross-process issues
-      logger.info(`Broadcasting event ${event.id} for user ${event.userId}, type: ${event.type}, PID: ${process.pid}`);
+      logger.info(
+        `Broadcasting event ${event.id} for user ${event.userId}, type: ${event.type}, PID: ${process.pid}`
+      );
 
       // Check if user has active subscriptions for this event type
       const hasSubscription =
@@ -61,27 +63,36 @@ export class PusherEventBroadcaster {
         logger.info(
           `SUBSCRIPTION_MISSING: User ${event.userId} has no active subscription for event type ${event.type} in process ${process.pid}`
         );
-        
+
         // Auto-create default subscription to fix cross-process issue
-        logger.info(`Auto-creating default subscription for user ${event.userId} in process ${process.pid}`);
-        await eventSubscriptionManager.initializeDefaultSubscription(event.userId);
-        
-        // Verify subscription was created
-        const hasSubscriptionNow = await eventSubscriptionManager.hasActiveSubscription(
-          event.userId,
-          event.type
+        logger.info(
+          `Auto-creating default subscription for user ${event.userId} in process ${process.pid}`
         );
-        
+        await eventSubscriptionManager.initializeDefaultSubscription(
+          event.userId
+        );
+
+        // Verify subscription was created
+        const hasSubscriptionNow =
+          await eventSubscriptionManager.hasActiveSubscription(
+            event.userId,
+            event.type
+          );
+
         if (!hasSubscriptionNow) {
-          logger.error(`Failed to create subscription for user ${event.userId} in process ${process.pid}`);
+          logger.error(
+            `Failed to create subscription for user ${event.userId} in process ${process.pid}`
+          );
           return {
             success: true,
             subscriberCount: 0,
             eventId: event.id,
           };
         }
-        
-        logger.info(`Successfully created subscription for user ${event.userId} in process ${process.pid}`);
+
+        logger.info(
+          `Successfully created subscription for user ${event.userId} in process ${process.pid}`
+        );
       }
 
       // Create user-specific channel
@@ -99,15 +110,24 @@ export class PusherEventBroadcaster {
       // Broadcast to user's private channel
       await this.pusher.trigger(channelName, event.type, eventData);
 
-      logger.info(`SUCCESS: Broadcasted event ${event.id} to channel ${channelName} in process ${process.pid}`, {
-        eventType: event.type,
-        userId: event.userId,
-        priority: event.priority,
-        processId: process.pid,
-      });
+      logger.info(
+        `SUCCESS: Broadcasted event ${event.id} to channel ${channelName} in process ${process.pid}`,
+        {
+          eventType: event.type,
+          userId: event.userId,
+          priority: event.priority,
+          processId: process.pid,
+        }
+      );
 
       // Convert calendar events to chat messages (non-blocking)
-      this.convertEventToChatAsync(event);
+      eventToChatService.convertEventToChat(event).catch(error => {
+        logger.error('Background chat conversion failed', {
+          error: error instanceof Error ? error.message : String(error),
+          eventId: event.id,
+          userId: event.userId,
+        });
+      });
 
       return {
         success: true,
@@ -217,20 +237,6 @@ export class PusherEventBroadcaster {
       );
       throw error;
     }
-  }
-
-  /**
-   * Convert calendar events to chat messages asynchronously (non-blocking)
-   */
-  private convertEventToChatAsync(event: Event): void {
-    // Run in background without blocking the main event broadcasting
-    eventToChatService.convertEventToChat(event).catch(error => {
-      logger.error('Background chat conversion failed', {
-        error: error instanceof Error ? error.message : String(error),
-        eventId: event.id,
-        userId: event.userId,
-      });
-    });
   }
 
   public async cleanup(): Promise<void> {
