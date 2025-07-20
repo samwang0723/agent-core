@@ -4,7 +4,6 @@ import { Session } from '../middleware/auth';
 import logger from '../utils/logger';
 import { requireAuth } from '../middleware/auth';
 import { HonoSSEOutput } from './conversation.dto';
-import { optimizedIntentDetection } from '../intents/intent.service';
 import { mastraMemoryService } from '../../mastra/memory/memory.service';
 import { memoryPatterns } from '../../mastra/memory/memory.dto';
 import { messageHistory } from './history.service';
@@ -214,24 +213,27 @@ app.post('/stream', requireAuth, async c => {
 
         const masterAgent = mastra.getAgent('masterAgent')!;
         const agentStreamStartTime = performance.now();
-        const streamResult = await masterAgent.stream(message, {
-          resourceId,
-          threadId,
-          maxRetries: 1,
-          maxSteps: 5,
-          maxTokens: 300,
-          onFinish: () => {
-            const totalDuration = performance.now() - requestStartTime;
-            logger.info(
-              `[${user.id}] Agent: Total stream took ${totalDuration.toFixed(2)} ms`
-            );
-          },
-          runtimeContext,
-          context: [
-            { role: 'system', content: localeSystemMessage },
-            contextMessage,
-          ],
-        });
+        const streamResult = await masterAgent.stream(
+          `${contextMessage.content}\n\n${message}`,
+          {
+            resourceId,
+            threadId,
+            maxRetries: 1,
+            maxSteps: 5,
+            maxTokens: 300,
+            onFinish: () => {
+              const totalDuration = performance.now() - requestStartTime;
+              logger.info(
+                `[${user.id}] Agent: Total stream took ${totalDuration.toFixed(2)} ms`
+              );
+            },
+            runtimeContext,
+            context: [
+              { role: 'system', content: localeSystemMessage },
+              contextMessage,
+            ],
+          }
+        );
         const agentStreamEndTime = performance.now();
         logger.info(
           `[${user.id}] Agent stream setup took ${(agentStreamEndTime - agentStreamStartTime).toFixed(2)} ms`
@@ -425,49 +427,34 @@ app.post('/', requireAuth, async c => {
         userId: user.id,
       });
     } else {
-      const intentStartTime = performance.now();
-      const result = await optimizedIntentDetection(message);
-      const intentEndTime = performance.now();
-      logger.info(
-        `[${user.id}] Intent detection took ${(intentEndTime - intentStartTime).toFixed(2)} ms`
-      );
-
-      if (result.suitableAgent) {
-        const generateStartTime = performance.now();
-        const response = await result.suitableAgent.generate(message, {
+      const masterAgent = mastra.getAgent('masterAgent')!;
+      const generateStartTime = performance.now();
+      const response = await masterAgent.generate(
+        `${contextMessage.content}\n\n${message}`,
+        {
           resourceId,
           threadId,
-          maxRetries: 0,
-          maxSteps: 10,
-          maxTokens: 800,
+          maxRetries: 1,
+          maxSteps: 5,
+          maxTokens: 300,
           runtimeContext,
           context: [
             { role: 'system', content: localeSystemMessage },
             contextMessage,
           ],
-        });
-        const generateEndTime = performance.now();
-        const totalDuration = generateEndTime - requestStartTime;
-        logger.info(
-          `[${user.id}] Agent generate took ${(generateEndTime - generateStartTime).toFixed(2)} ms, total: ${totalDuration.toFixed(2)} ms`
-        );
+        }
+      );
+      const generateEndTime = performance.now();
+      const totalDuration = generateEndTime - requestStartTime;
+      logger.info(
+        `[${user.id}] Agent generate took ${(generateEndTime - generateStartTime).toFixed(2)} ms, total: ${totalDuration.toFixed(2)} ms`
+      );
 
-        return c.json({
-          response: response.text,
-          userId: user.id,
-        });
-      }
+      return c.json({
+        response: response.text,
+        userId: user.id,
+      });
     }
-
-    const totalDuration = performance.now() - requestStartTime;
-    logger.info(
-      `[${user.id}] No suitable agent found, total time: ${totalDuration.toFixed(2)} ms`
-    );
-
-    return c.json({
-      response: 'No suitable agent found',
-      userId: user.id,
-    });
   } catch (error) {
     const errorTime = performance.now();
     const totalDuration = errorTime - requestStartTime;

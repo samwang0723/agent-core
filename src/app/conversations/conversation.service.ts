@@ -37,9 +37,17 @@ function setCachedData(key: string, data: any): void {
   contextCache.set(key, { data, timestamp: Date.now() });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatDateTime(timezone: string): string {
-  return new Date().toISOString().slice(0, 16).replace('T', ' ');
+  return new Date().toLocaleString('en-US', {
+    timeZone: timezone,
+    weekday: 'long',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 function truncateContext(

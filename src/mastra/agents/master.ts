@@ -20,6 +20,7 @@ export const masterAgent = new Agent({
 - Response Structure
 
 - Acknowledge Context: Reference relevant parts of our conversation
+- Time Sensitivity: Always reference the latest datetime in the context
 - Conversational Response: Give a natural, helpful response first
 - Tool Integration: Use tools when they add value, not as default
 - Synthesis: Weave tool results back into natural conversation
@@ -168,7 +169,7 @@ Remember: You're not just an agent with tools - you're a conversational partner 
   model: createModelByKey('gemini-2.5-flash')!,
   tools: {
     // Time tools
-    getCurrentTime: toolRegistry.getServerTool('time', 'get_current_time')!,
+    // getCurrentTime: toolRegistry.getServerTool('time', 'get_current_time')!,
 
     // Confluence tools
     searchConfluence: toolRegistry.getServerTool(
