@@ -49,7 +49,9 @@ export interface CalendarEvent {
   startTime: Date;
   endTime: Date;
   location?: string | null;
-  attendees?: object[] | null;
+  attendees?:
+    | { email: string; responseStatus: string; [key: string]: unknown }[]
+    | null;
   organizer?: object | null;
   status?: string | null;
   htmlLink?: string | null;

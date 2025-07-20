@@ -4,6 +4,9 @@ import { embeddingService } from '../embeddings';
 import { CalendarService } from '../calendar';
 import { task, wait, schedules } from '@trigger.dev/sdk/v3';
 import { getActiveUsersWithGoogleIntegration } from '../users/user.repository';
+import { EventDetector } from '../events/event.detector';
+import { eventBroadcaster } from '../events/event.service';
+import { eventBatchService } from '../events/event-batch.service';
 
 export const importGmailTask = task({
   id: 'import-gmail',
@@ -55,6 +58,29 @@ async function importGmail(token: string, userId: string): Promise<string> {
       logger.info(
         `Successfully created embeddings for ${insertedEmails.length} emails.`
       );
+
+      // Detect and process important email events in batch
+      try {
+        const importantEmailEvents =
+          EventDetector.detectImportantEmails(insertedEmails);
+
+        if (importantEmailEvents.length > 0) {
+          // Process emails as a batch for summary
+          await eventBatchService.processEmailEventBatch(
+            userId,
+            importantEmailEvents
+          );
+
+          logger.info(
+            `Processed ${importantEmailEvents.length} important email events as batch for user ${userId}`
+          );
+        }
+      } catch (error) {
+        logger.error('Error detecting/processing email events batch', {
+          error: error instanceof Error ? error.message : String(error),
+          userId,
+        });
+      }
     } else {
       logger.info('No new emails to process in the background.');
     }
@@ -94,6 +120,13 @@ async function importCalendar(token: string, userId: string): Promise<string> {
     logger.info('Fetching and storing calendar events in the background...');
     const calendarService = new CalendarService();
     await calendarService.initialize(token);
+
+    // Get existing calendar event IDs to detect new events
+    const { getExistingCalendarEventIds } = await import(
+      '../calendar/calendar.repository'
+    );
+    const existingEventIds = await getExistingCalendarEventIds(userId);
+
     const eventResponse = await calendarService.getCalendarEvents();
     const events = eventResponse.events || [];
 
@@ -123,6 +156,36 @@ async function importCalendar(token: string, userId: string): Promise<string> {
       logger.info(
         `Successfully created embeddings for ${insertedEvents.length} events.`
       );
+
+      // Detect and process calendar events in batch
+      try {
+        const calendarEvents = EventDetector.detectCalendarEvents(
+          userId,
+          insertedEvents,
+          existingEventIds
+        );
+
+        if (calendarEvents.length > 0) {
+          // Process calendar events as a batch for summary
+          await eventBatchService.processCalendarEventBatch(
+            userId,
+            calendarEvents
+          );
+
+          logger.info(
+            `Processed ${calendarEvents.length} calendar events as batch for user ${userId}`
+          );
+        } else {
+          logger.info(
+            `No new calendar events to process in the background for user ${userId}`
+          );
+        }
+      } catch (error) {
+        logger.error('Error detecting/processing calendar events batch', {
+          error: error instanceof Error ? error.message : String(error),
+          userId,
+        });
+      }
     } else {
       logger.info('No new calendar events to process in the background.');
     }
@@ -168,7 +231,7 @@ export const syncGmailCronTask = schedules.task({
           });
         }
 
-        await wait.for({ seconds: 1 });
+        await wait.for({ seconds: 10 });
       }
 
       logger.info(
@@ -219,7 +282,7 @@ export const syncCalendarCronTask = schedules.task({
           });
         }
 
-        await wait.for({ seconds: 1 });
+        await wait.for({ seconds: 10 });
       }
 
       logger.info(
