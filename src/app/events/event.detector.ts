@@ -230,8 +230,8 @@ export class EventDetector {
     }
 
     // Determine importance level
-    if (score >= 6) return 'urgent';
-    if (score >= 4) return 'high';
+    if (score >= 4) return 'urgent';
+    if (score >= 3) return 'high';
     if (score >= 2) return 'medium';
     return 'low';
   }
