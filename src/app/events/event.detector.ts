@@ -27,15 +27,32 @@ export class EventDetector {
     'needs attention',
     'final notice',
     'last chance',
+    'security',
+    'alert',
+    'invoice',
+    'purchase',
+    'order',
+    'payment',
+    'receipt',
+    'refund',
+    'shipping',
+    'delivery',
   ];
 
   private static readonly VIP_DOMAINS = [
     'gmail.com',
-    'outlook.com',
-    'hotmail.com',
-    'yahoo.com',
-    'company.com',
-    'organization.org', // Add your important domains
+    'bank.com',
+    'playstation.com',
+    'google.com',
+    'microsoft.com',
+    'apple.com',
+    'amazon.com',
+    'meta.com',
+    'netflix.com',
+    'spotify.com',
+    'youtube.com',
+    'github.com',
+    'crypto.com',
   ];
 
   private static readonly CALENDAR_IMPORTANT_KEYWORDS = [
@@ -135,7 +152,7 @@ export class EventDetector {
       const timeUntilStart = event.startTime.getTime() - now.getTime();
       const minutesUntilStart = Math.floor(timeUntilStart / (1000 * 60));
 
-      if (minutesUntilStart > 0 && minutesUntilStart <= 1440) {
+      if (minutesUntilStart > 0 && minutesUntilStart <= 60 * 60 * 2) {
         // 24 hours
         let reminder: 'soon' | 'starting' | 'overdue' = 'soon';
 

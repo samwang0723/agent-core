@@ -175,6 +175,10 @@ async function importCalendar(token: string, userId: string): Promise<string> {
           logger.info(
             `Processed ${calendarEvents.length} calendar events as batch for user ${userId}`
           );
+        } else {
+          logger.info(
+            `No new calendar events to process in the background for user ${userId}`
+          );
         }
       } catch (error) {
         logger.error('Error detecting/processing calendar events batch', {
