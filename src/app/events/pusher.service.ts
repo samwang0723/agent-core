@@ -159,7 +159,7 @@ export class PusherEventBroadcaster {
     data: Record<string, unknown>
   ): Promise<void> {
     const event: Event = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       userId,
       type: eventType,
       timestamp: new Date(),

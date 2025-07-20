@@ -218,7 +218,7 @@ Respond naturally as their assistant with a friendly heads-up about the upcoming
     try {
       // Create a chat message event
       const chatMessageEvent: ChatMessageEvent = {
-        id: `chat-message-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `chat-message-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         userId,
         type: EventType.CHAT_MESSAGE,
         timestamp: new Date(),

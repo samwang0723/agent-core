@@ -34,7 +34,7 @@ export class EventBatchService {
       return;
     }
 
-    const batchId = `calendar-batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const batchId = `calendar-batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     logger.info(`Processing calendar event batch for user ${userId}`, {
       batchId,
@@ -92,7 +92,7 @@ export class EventBatchService {
       return;
     }
 
-    const batchId = `email-batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const batchId = `email-batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     logger.info(`Processing email event batch for user ${userId}`, {
       batchId,
@@ -267,7 +267,7 @@ Provide a brief, natural summary highlighting the important emails and suggest a
   ): Promise<void> {
     try {
       const chatMessageEvent: ChatMessageEvent = {
-        id: `${type}-summary-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `${type}-summary-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         userId,
         type: EventType.CHAT_MESSAGE,
         timestamp: new Date(),
