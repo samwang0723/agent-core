@@ -13,6 +13,8 @@ export enum EventType {
   CALENDAR_UPCOMING_EVENT = 'calendar_upcoming_event',
   CALENDAR_NEW_EVENT = 'calendar_new_event',
   CALENDAR_EVENT_REMINDER = 'calendar_event_reminder',
+  CALENDAR_BATCH_SUMMARY = 'calendar_batch_summary',
+  EMAIL_BATCH_SUMMARY = 'email_batch_summary',
   SYSTEM_NOTIFICATION = 'system_notification',
   CHAT_MESSAGE = 'chat_message',
 }
@@ -88,6 +90,29 @@ export interface ChatMessageEvent extends BaseEvent {
     isProactive: boolean;
     triggerEventType?: EventType;
     triggerEventId?: string;
+    isBatchSummary?: boolean;
+    batchType?: 'calendar' | 'email';
+    batchId?: string;
+  };
+}
+
+export interface CalendarBatchSummaryEvent extends BaseEvent {
+  type: EventType.CALENDAR_BATCH_SUMMARY;
+  data: {
+    batchId: string;
+    newEventsCount: number;
+    upcomingEventsCount: number;
+    summary: string;
+  };
+}
+
+export interface EmailBatchSummaryEvent extends BaseEvent {
+  type: EventType.EMAIL_BATCH_SUMMARY;
+  data: {
+    batchId: string;
+    emailCount: number;
+    urgentCount: number;
+    summary: string;
   };
 }
 
@@ -95,6 +120,8 @@ export type Event =
   | GmailImportantEmailEvent
   | CalendarUpcomingEventEvent
   | CalendarNewEventEvent
+  | CalendarBatchSummaryEvent
+  | EmailBatchSummaryEvent
   | SystemNotificationEvent
   | ChatMessageEvent;
 

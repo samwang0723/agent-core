@@ -1039,7 +1039,7 @@
   <body>
     <!-- Event Notification Container -->
     <div class="notification-container" id="notificationContainer"></div>
-    
+
     <div class="container">
       <!-- Header with Title and Authentication -->
       <header class="header-section" id="authSection">
@@ -1092,7 +1092,10 @@
                 Clear
               </button>
               <div class="event-status">
-                <div class="event-status-indicator connecting" id="eventStatusIndicator"></div>
+                <div
+                  class="event-status-indicator connecting"
+                  id="eventStatusIndicator"
+                ></div>
                 <span id="eventStatusText">Connecting...</span>
               </div>
               <button onclick="logout()" class="logout-btn">Logout</button>
@@ -1240,7 +1243,7 @@
 
             // Pre-warm the Core and load history concurrently
             await Promise.all([initializeCore(), loadChatHistory()]);
-            
+
             // Initialize Pusher for real-time notifications
             initializePusher();
           } else {
@@ -2075,9 +2078,12 @@
           if (!configResponse.ok) {
             throw new Error('Failed to get Pusher configuration');
           }
-          
+
           const config = await configResponse.json();
-          console.log('Pusher config received:', { key: config.key, cluster: config.cluster });
+          console.log('Pusher config received:', {
+            key: config.key,
+            cluster: config.cluster,
+          });
 
           // Initialize Pusher
           pusher = new Pusher(config.key, {
@@ -2087,8 +2093,8 @@
             auth: {
               headers: {
                 'Content-Type': 'application/json',
-              }
-            }
+              },
+            },
           });
 
           // Get user's channel information
@@ -2096,7 +2102,7 @@
           if (!channelResponse.ok) {
             throw new Error('Failed to get channel information');
           }
-          
+
           const channelInfo = await channelResponse.json();
           console.log('Channel info received:', channelInfo);
 
@@ -2104,87 +2110,89 @@
           userChannel = pusher.subscribe(channelInfo.channel);
 
           // Handle connection events
-          pusher.connection.bind('connected', function() {
+          pusher.connection.bind('connected', function () {
             console.log('Pusher connected');
             updateEventStatus('connected', 'Connected');
             eventConnectionRetries = 0;
           });
 
-          pusher.connection.bind('disconnected', function() {
+          pusher.connection.bind('disconnected', function () {
             console.log('Pusher disconnected');
             updateEventStatus('disconnected', 'Disconnected');
           });
 
-          pusher.connection.bind('error', function(error) {
+          pusher.connection.bind('error', function (error) {
             console.error('Pusher connection error:', error);
             updateEventStatus('disconnected', 'Connection error');
             handlePusherError();
           });
 
           // Handle channel subscription events
-          userChannel.bind('pusher:subscription_succeeded', function() {
+          userChannel.bind('pusher:subscription_succeeded', function () {
             console.log('Successfully subscribed to user channel');
             updateEventStatus('connected', 'Connected');
           });
 
-          userChannel.bind('pusher:subscription_error', function(error) {
+          userChannel.bind('pusher:subscription_error', function (error) {
             console.error('Channel subscription error:', error);
             updateEventStatus('disconnected', 'Subscription failed');
             handlePusherError();
           });
 
           // Bind to specific event types
-          userChannel.bind('gmail_important_email', function(data) {
+          userChannel.bind('gmail_important_email', function (data) {
             console.log('Important email event:', data);
             showNotification({
               type: 'email',
               title: 'Important Email',
               content: `${data.subject} from ${data.fromAddress}`,
               priority: data.priority,
-              timestamp: new Date(data.timestamp)
+              timestamp: new Date(data.timestamp),
             });
           });
 
-          userChannel.bind('calendar_upcoming_event', function(data) {
+          userChannel.bind('calendar_upcoming_event', function (data) {
             console.log('Upcoming calendar event:', data);
-            const timeText = data.timeUntilStart <= 15 ? 'starting soon' : `in ${data.timeUntilStart} minutes`;
+            const timeText =
+              data.timeUntilStart <= 15
+                ? 'starting soon'
+                : `in ${data.timeUntilStart} minutes`;
             showNotification({
               type: 'calendar',
               title: 'Upcoming Event',
               content: `${data.title} ${timeText}`,
               priority: data.priority,
-              timestamp: new Date(data.timestamp)
+              timestamp: new Date(data.timestamp),
             });
           });
 
-          userChannel.bind('calendar_new_event', function(data) {
+          userChannel.bind('calendar_new_event', function (data) {
             console.log('New calendar event:', data);
             showNotification({
               type: 'calendar',
               title: 'New Event Added',
               content: `${data.title} on ${new Date(data.startTime).toLocaleDateString()}`,
               priority: data.priority,
-              timestamp: new Date(data.timestamp)
+              timestamp: new Date(data.timestamp),
             });
           });
 
-          userChannel.bind('system_notification', function(data) {
+          userChannel.bind('system_notification', function (data) {
             console.log('System notification:', data);
             showNotification({
               type: 'system',
               title: data.title || 'System Notification',
               content: data.message,
               priority: 'medium',
-              timestamp: new Date(data.timestamp)
+              timestamp: new Date(data.timestamp),
             });
           });
 
-          userChannel.bind('chat_message', function(data) {
+          userChannel.bind('chat_message', function (data) {
             console.log('Proactive chat message:', data);
             // Add the message to the chat interface as an assistant message
             addMessage(data.message, false, false, data.timestamp);
           });
-
         } catch (error) {
           console.error('Failed to initialize Pusher:', error);
           updateEventStatus('disconnected', 'Failed to connect');
@@ -2195,7 +2203,9 @@
       function handlePusherError() {
         if (eventConnectionRetries < MAX_EVENT_RETRIES) {
           eventConnectionRetries++;
-          console.log(`Retrying Pusher connection (${eventConnectionRetries}/${MAX_EVENT_RETRIES})...`);
+          console.log(
+            `Retrying Pusher connection (${eventConnectionRetries}/${MAX_EVENT_RETRIES})...`
+          );
           setTimeout(() => {
             disconnectPusher();
             initializePusher();
@@ -2212,19 +2222,19 @@
           pusher.unsubscribe(userChannel.name);
           userChannel = null;
         }
-        
+
         if (pusher) {
           pusher.disconnect();
           pusher = null;
         }
-        
+
         updateEventStatus('disconnected', 'Disconnected');
       }
 
       function updateEventStatus(status, text) {
         const indicator = document.getElementById('eventStatusIndicator');
         const statusText = document.getElementById('eventStatusText');
-        
+
         if (indicator) {
           indicator.className = `event-status-indicator ${status}`;
         }
@@ -2240,15 +2250,17 @@
 
       function showNotification(options) {
         const { type, title, content, priority, timestamp } = options;
-        
+
         const container = document.getElementById('notificationContainer');
         if (!container) return;
 
         const notification = document.createElement('div');
         notification.className = `notification ${priority || 'medium'}`;
-        
-        const timeString = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
-        
+
+        const timeString = timestamp
+          ? new Date(timestamp).toLocaleTimeString()
+          : new Date().toLocaleTimeString();
+
         notification.innerHTML = `
           <div class="notification-header">
             <h4 class="notification-title">${title}</h4>
@@ -2257,18 +2269,20 @@
           </div>
           <p class="notification-content">${content}</p>
         `;
-        
+
         container.appendChild(notification);
-        
+
         // Auto-dismiss after 10 seconds for non-urgent notifications
         if (priority !== 'urgent') {
           setTimeout(() => {
-            dismissNotification(notification.querySelector('.notification-close'));
+            dismissNotification(
+              notification.querySelector('.notification-close')
+            );
           }, 10000);
         }
-        
+
         // Add click handler to notification
-        notification.addEventListener('click', function() {
+        notification.addEventListener('click', function () {
           if (type === 'email') {
             // Could open email in chat or external app
             console.log('Email notification clicked');

@@ -8,7 +8,7 @@ export class EventStorage {
 
   public async storeEvent(event: Event): Promise<void> {
     this.events.set(event.id, event);
-    
+
     // Clean up old events if we exceed the maximum
     if (this.events.size > this.maxEvents) {
       await this.cleanup();
@@ -21,9 +21,12 @@ export class EventStorage {
     return this.events.get(eventId);
   }
 
-  public async getEventsForUser(userId: string, limit: number = 50): Promise<Event[]> {
+  public async getEventsForUser(
+    userId: string,
+    limit: number = 50
+  ): Promise<Event[]> {
     const userEvents: Event[] = [];
-    
+
     for (const event of this.events.values()) {
       if (event.userId === userId) {
         userEvents.push(event);
@@ -60,11 +63,13 @@ export class EventStorage {
   }> {
     const events = Array.from(this.events.values());
     const timestamps = events.map(e => e.timestamp.getTime());
-    
+
     return {
       totalEvents: events.length,
-      oldestEvent: timestamps.length > 0 ? new Date(Math.min(...timestamps)) : null,
-      newestEvent: timestamps.length > 0 ? new Date(Math.max(...timestamps)) : null,
+      oldestEvent:
+        timestamps.length > 0 ? new Date(Math.min(...timestamps)) : null,
+      newestEvent:
+        timestamps.length > 0 ? new Date(Math.max(...timestamps)) : null,
     };
   }
 }

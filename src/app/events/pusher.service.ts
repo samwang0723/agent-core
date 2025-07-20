@@ -121,13 +121,16 @@ export class PusherEventBroadcaster {
       );
 
       // Convert calendar events to chat messages (non-blocking)
-      eventToChatService.convertEventToChat(event).catch(error => {
-        logger.error('Background chat conversion failed', {
-          error: error instanceof Error ? error.message : String(error),
-          eventId: event.id,
-          userId: event.userId,
+      // Skip conversion for batch summary events and chat messages as they're already processed
+      if (this.shouldConvertToChat(event)) {
+        eventToChatService.convertEventToChat(event).catch(error => {
+          logger.error('Background chat conversion failed', {
+            error: error instanceof Error ? error.message : String(error),
+            eventId: event.id,
+            userId: event.userId,
+          });
         });
-      });
+      }
 
       return {
         success: true,
@@ -250,6 +253,21 @@ export class PusherEventBroadcaster {
       cluster: process.env.PUSHER_CLUSTER || 'us2',
       appId: process.env.PUSHER_APP_ID || '',
     };
+  }
+
+  /**
+   * Determine if an event should be converted to chat message
+   * Skip batch summary events and chat messages as they're already processed
+   */
+  private shouldConvertToChat(event: Event): boolean {
+    const skipConversionTypes = [
+      EventType.CALENDAR_BATCH_SUMMARY,
+      EventType.EMAIL_BATCH_SUMMARY,
+      EventType.CHAT_MESSAGE,
+      EventType.SYSTEM_NOTIFICATION,
+    ];
+
+    return !skipConversionTypes.includes(event.type);
   }
 }
 

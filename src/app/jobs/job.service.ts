@@ -6,6 +6,7 @@ import { task, wait, schedules } from '@trigger.dev/sdk/v3';
 import { getActiveUsersWithGoogleIntegration } from '../users/user.repository';
 import { EventDetector } from '../events/event.detector';
 import { eventBroadcaster } from '../events/event.service';
+import { eventBatchService } from '../events/event-batch.service';
 
 export const importGmailTask = task({
   id: 'import-gmail',
@@ -58,22 +59,24 @@ async function importGmail(token: string, userId: string): Promise<string> {
         `Successfully created embeddings for ${insertedEmails.length} emails.`
       );
 
-      // Detect and broadcast important email events
+      // Detect and process important email events in batch
       try {
         const importantEmailEvents =
           EventDetector.detectImportantEmails(insertedEmails);
 
-        for (const event of importantEmailEvents) {
-          await eventBroadcaster.broadcastEvent(event);
-        }
-
         if (importantEmailEvents.length > 0) {
+          // Process emails as a batch for summary
+          await eventBatchService.processEmailEventBatch(
+            userId,
+            importantEmailEvents
+          );
+
           logger.info(
-            `Broadcasted ${importantEmailEvents.length} important email events for user ${userId}`
+            `Processed ${importantEmailEvents.length} important email events as batch for user ${userId}`
           );
         }
       } catch (error) {
-        logger.error('Error detecting/broadcasting email events', {
+        logger.error('Error detecting/processing email events batch', {
           error: error instanceof Error ? error.message : String(error),
           userId,
         });
@@ -154,7 +157,7 @@ async function importCalendar(token: string, userId: string): Promise<string> {
         `Successfully created embeddings for ${insertedEvents.length} events.`
       );
 
-      // Detect and broadcast calendar events
+      // Detect and process calendar events in batch
       try {
         const calendarEvents = EventDetector.detectCalendarEvents(
           userId,
@@ -162,17 +165,19 @@ async function importCalendar(token: string, userId: string): Promise<string> {
           existingEventIds
         );
 
-        for (const event of calendarEvents) {
-          await eventBroadcaster.broadcastEvent(event);
-        }
-
         if (calendarEvents.length > 0) {
+          // Process calendar events as a batch for summary
+          await eventBatchService.processCalendarEventBatch(
+            userId,
+            calendarEvents
+          );
+
           logger.info(
-            `Broadcasted ${calendarEvents.length} calendar events for user ${userId}`
+            `Processed ${calendarEvents.length} calendar events as batch for user ${userId}`
           );
         }
       } catch (error) {
-        logger.error('Error detecting/broadcasting calendar events', {
+        logger.error('Error detecting/processing calendar events batch', {
           error: error instanceof Error ? error.message : String(error),
           userId,
         });

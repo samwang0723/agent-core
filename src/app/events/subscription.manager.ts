@@ -14,12 +14,20 @@ export class EventSubscriptionManager {
     return EventSubscriptionManager.instance;
   }
 
-  public async hasActiveSubscription(userId: string, eventType: EventType): Promise<boolean> {
+  public async hasActiveSubscription(
+    userId: string,
+    eventType: EventType
+  ): Promise<boolean> {
     const subscription = this.subscriptions.get(userId);
-    return subscription?.isActive && subscription.eventTypes.includes(eventType) || false;
+    return (
+      (subscription?.isActive && subscription.eventTypes.includes(eventType)) ||
+      false
+    );
   }
 
-  public async getSubscription(userId: string): Promise<EventSubscription | undefined> {
+  public async getSubscription(
+    userId: string
+  ): Promise<EventSubscription | undefined> {
     return this.subscriptions.get(userId);
   }
 
@@ -30,7 +38,7 @@ export class EventSubscriptionManager {
   ): Promise<EventSubscription> {
     const now = new Date();
     const existing = this.subscriptions.get(userId);
-    
+
     const subscription: EventSubscription = {
       userId,
       eventTypes,
@@ -40,7 +48,7 @@ export class EventSubscriptionManager {
     };
 
     this.subscriptions.set(userId, subscription);
-    
+
     logger.info(`Updated event subscription for user ${userId}`, {
       eventTypes,
       isActive,
@@ -72,7 +80,9 @@ export class EventSubscriptionManager {
     logger.info(`Deleted event subscription for user ${userId}`);
   }
 
-  public async initializeDefaultSubscription(userId: string): Promise<EventSubscription> {
+  public async initializeDefaultSubscription(
+    userId: string
+  ): Promise<EventSubscription> {
     // Default to all event types enabled
     const defaultEventTypes = [
       EventType.GMAIL_IMPORTANT_EMAIL,
