@@ -10,6 +10,7 @@ import {
 import { mastra } from '../../mastra';
 import logger from '../utils/logger';
 import { eventBroadcaster } from './event.service';
+import { notificationCache } from '../utils/notification-cache';
 
 export class EventBatchService {
   private static instance: EventBatchService;
@@ -51,6 +52,24 @@ export class EventBatchService {
         e => e.type === EventType.CALENDAR_UPCOMING_EVENT
       ) as CalendarUpcomingEventEvent[];
 
+      // Generate content hash for cache check
+      const eventTitles = events.map(e => 
+        e.type === EventType.CALENDAR_NEW_EVENT 
+          ? (e as CalendarNewEventEvent).data.title
+          : (e as CalendarUpcomingEventEvent).data.title
+      );
+      const contentHash = notificationCache.generateContentHash(eventTitles);
+
+      // Check for duplicate notification
+      if (notificationCache.isDuplicate(userId, 'calendar', contentHash)) {
+        logger.info(`Skipping duplicate calendar notification for user ${userId}`, {
+          batchId,
+          contentHash,
+          eventCount: events.length,
+        });
+        return;
+      }
+
       // Generate summary message
       const summaryMessage = await this.generateCalendarSummary(
         newEvents,
@@ -66,10 +85,18 @@ export class EventBatchService {
           batchId
         );
 
+        // Mark notification as sent in cache
+        notificationCache.markNotified(userId, 'calendar', contentHash, {
+          batchId,
+          eventCount: events.length,
+          eventTitles,
+        });
+
         logger.info(`Successfully processed calendar batch ${batchId}`, {
           userId,
           newEventsCount: newEvents.length,
           upcomingEventsCount: upcomingEvents.length,
+          contentHash,
         });
       }
     } catch (error) {
@@ -101,6 +128,20 @@ export class EventBatchService {
     });
 
     try {
+      // Generate content hash for cache check
+      const emailSubjects = events.map(e => e.data.subject);
+      const contentHash = notificationCache.generateContentHash(emailSubjects);
+
+      // Check for duplicate notification
+      if (notificationCache.isDuplicate(userId, 'email', contentHash)) {
+        logger.info(`Skipping duplicate email notification for user ${userId}`, {
+          batchId,
+          contentHash,
+          eventCount: events.length,
+        });
+        return;
+      }
+
       // Generate summary message
       const summaryMessage = await this.generateEmailSummary(events);
 
@@ -113,9 +154,17 @@ export class EventBatchService {
           batchId
         );
 
+        // Mark notification as sent in cache
+        notificationCache.markNotified(userId, 'email', contentHash, {
+          batchId,
+          eventCount: events.length,
+          emailSubjects,
+        });
+
         logger.info(`Successfully processed email batch ${batchId}`, {
           userId,
           eventCount: events.length,
+          contentHash,
         });
       }
     } catch (error) {

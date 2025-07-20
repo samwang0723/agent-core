@@ -9,3 +9,4 @@ export * from './general';
 export * from './reddit';
 export * from './music';
 export * from './portfolio';
+export * from './master';

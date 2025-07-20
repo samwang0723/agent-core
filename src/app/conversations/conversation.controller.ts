@@ -210,25 +210,16 @@ app.post('/stream', requireAuth, async c => {
           },
         });
       } else {
-        // NOTE: This is the old way of doing it. intent detection may not be accurate
-        // to determine which agent to use based on random conversation.
-        // We should use the vNext network for this.
-        const intentStartTime = performance.now();
-        const result = await optimizedIntentDetection(message);
-        const intentEndTime = performance.now();
-        logger.info(
-          `[${user.id}] Intent detection took ${(intentEndTime - intentStartTime).toFixed(2)} ms`
-        );
-        logger.info(`[${user.id}] Agent: Intent Result: `, result);
         logger.info(`[${user.id}] Agent: Using agent (locale: ${locale})`);
 
+        const masterAgent = mastra.getAgent('masterAgent')!;
         const agentStreamStartTime = performance.now();
-        const streamResult = await result.suitableAgent!.stream(message, {
+        const streamResult = await masterAgent.stream(message, {
           resourceId,
           threadId,
           maxRetries: 1,
-          maxSteps: 10,
-          maxTokens: 800,
+          maxSteps: 5,
+          maxTokens: 300,
           onFinish: () => {
             const totalDuration = performance.now() - requestStartTime;
             logger.info(

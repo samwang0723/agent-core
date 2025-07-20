@@ -1,5 +1,6 @@
 import { Mastra } from '@mastra/core';
 import {
+  masterAgent,
   generalAgent,
   weatherAgent,
   webSearchAgent,
@@ -36,6 +37,7 @@ export const mastra: Mastra = new Mastra({
     },
   },
   agents: {
+    masterAgent,
     generalAgent,
     weatherAgent,
     webSearchAgent,
