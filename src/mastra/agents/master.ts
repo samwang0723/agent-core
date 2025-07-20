@@ -166,7 +166,7 @@ Remember: You're not just an agent with tools - you're a conversational partner 
 - Keep responses conversational and concise
 - Keep all responses clean and readable without ANY special formatting characters
 `,
-  model: createModelByKey('gemini-2.5-flash')!,
+  model: createModelByKey('gemini-2.5-pro')!,
   tools: {
     // Time tools
     // getCurrentTime: toolRegistry.getServerTool('time', 'get_current_time')!,
