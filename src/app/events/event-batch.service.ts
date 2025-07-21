@@ -52,21 +52,25 @@ export class EventBatchService {
         e => e.type === EventType.CALENDAR_UPCOMING_EVENT
       ) as CalendarUpcomingEventEvent[];
 
-      // Generate content hash for cache check
-      const eventTitles = events.map(e => 
-        e.type === EventType.CALENDAR_NEW_EVENT 
-          ? (e as CalendarNewEventEvent).data.title
-          : (e as CalendarUpcomingEventEvent).data.title
+      // Extract event IDs for cache check
+      const eventIds = events.map(e =>
+        e.type === EventType.CALENDAR_NEW_EVENT
+          ? (e as CalendarNewEventEvent).data.eventId
+          : (e as CalendarUpcomingEventEvent).data.eventId
       );
-      const contentHash = notificationCache.generateContentHash(eventTitles);
 
-      // Check for duplicate notification
-      if (notificationCache.isDuplicate(userId, 'calendar', contentHash)) {
-        logger.info(`Skipping duplicate calendar notification for user ${userId}`, {
-          batchId,
-          contentHash,
-          eventCount: events.length,
-        });
+      // Check for duplicate notification using event IDs
+      if (
+        await notificationCache.isDuplicateByIds(userId, 'calendar', eventIds)
+      ) {
+        logger.info(
+          `Skipping duplicate calendar notification for user ${userId}`,
+          {
+            batchId,
+            eventIds,
+            eventCount: events.length,
+          }
+        );
         return;
       }
 
@@ -85,18 +89,23 @@ export class EventBatchService {
           batchId
         );
 
-        // Mark notification as sent in cache
-        notificationCache.markNotified(userId, 'calendar', contentHash, {
-          batchId,
-          eventCount: events.length,
-          eventTitles,
-        });
+        // Mark notification as sent in cache using event IDs
+        await notificationCache.markNotifiedByIds(
+          userId,
+          'calendar',
+          eventIds,
+          {
+            batchId,
+            eventCount: events.length,
+            eventIds,
+          }
+        );
 
         logger.info(`Successfully processed calendar batch ${batchId}`, {
           userId,
           newEventsCount: newEvents.length,
           upcomingEventsCount: upcomingEvents.length,
-          contentHash,
+          eventIds,
         });
       }
     } catch (error) {
@@ -128,17 +137,19 @@ export class EventBatchService {
     });
 
     try {
-      // Generate content hash for cache check
-      const emailSubjects = events.map(e => e.data.subject);
-      const contentHash = notificationCache.generateContentHash(emailSubjects);
+      // Extract email IDs for cache check
+      const emailIds = events.map(e => e.data.emailId);
 
-      // Check for duplicate notification
-      if (notificationCache.isDuplicate(userId, 'email', contentHash)) {
-        logger.info(`Skipping duplicate email notification for user ${userId}`, {
-          batchId,
-          contentHash,
-          eventCount: events.length,
-        });
+      // Check for duplicate notification using email IDs
+      if (await notificationCache.isDuplicateByIds(userId, 'email', emailIds)) {
+        logger.info(
+          `Skipping duplicate email notification for user ${userId}`,
+          {
+            batchId,
+            emailIds,
+            eventCount: events.length,
+          }
+        );
         return;
       }
 
@@ -154,17 +165,17 @@ export class EventBatchService {
           batchId
         );
 
-        // Mark notification as sent in cache
-        notificationCache.markNotified(userId, 'email', contentHash, {
+        // Mark notification as sent in cache using email IDs
+        await notificationCache.markNotifiedByIds(userId, 'email', emailIds, {
           batchId,
           eventCount: events.length,
-          emailSubjects,
+          emailIds,
         });
 
         logger.info(`Successfully processed email batch ${batchId}`, {
           userId,
           eventCount: events.length,
-          contentHash,
+          emailIds,
         });
       }
     } catch (error) {
