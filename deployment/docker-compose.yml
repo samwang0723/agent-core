@@ -70,6 +70,13 @@ services:
     networks:
       - agent-network
 
+  perplexity:
+    image: mcp/perplexity:latest
+    ports:
+      - '3007:3007'
+    networks:
+      - agent-network
+
   redis:
     image: redis:7-alpine
     container_name: redis

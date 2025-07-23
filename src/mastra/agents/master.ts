@@ -164,6 +164,10 @@ Remember: You're not just an agent with tools - you're a conversational partner 
 - Include humidity, wind, precipitation details
 - Suggest clothing recommendations based on forecast
 
+## PERPLEXITY:
+- ONLY Use perplexity tools for knownledge based questions: "perplexity", "deep search", "try to understand", "deep research", "analysis", "explain", "research"
+- ALWAYS respond with simple and concise short brief answer, do not use markdown formatting
+
 # CRITICAL SILENT OPERATION RULES:
 - ABSOLUTELY NO intermediate text output while using tools
 - NEVER mention what you are searching for or doing
@@ -260,6 +264,12 @@ Remember: You're not just an agent with tools - you're a conversational partner 
     webSearchTool: toolRegistry.getServerTool(
       'web-search',
       'brave_web_search'
+    )!,
+
+    // Perplexity tools
+    perplexitySearch: toolRegistry.getServerTool(
+      'perplexity',
+      'perplexity_ask'
     )!,
   },
   memory: mastraMemoryService.getMemory(),

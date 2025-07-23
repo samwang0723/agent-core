@@ -104,9 +104,9 @@ export const createMastraMemory = () => {
 
   const memory = new Memory({
     options: {
-      lastMessages: 6,
+      lastMessages: 10,
       workingMemory: {
-        enabled: true,
+        enabled: false,
         scope: 'resource', // Enable resource-scoped memory for cross-conversation persistence
         schema: userProfileSchema,
       },
