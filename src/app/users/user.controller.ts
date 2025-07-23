@@ -740,7 +740,6 @@ app.post('/oauth/token', async c => {
       tokenExpiryDate: authCodeData.tokens.expiry_date || undefined,
       createdAt: new Date(),
     };
-
     await storeUserSession(sessionToken, session);
 
     // Sync data with new token in background (don't block the request)
@@ -770,18 +769,9 @@ app.post('/oauth/token', async c => {
     // Clean up authorization code
     await deleteAuthCode(code);
 
-    const expiresIn = authCodeData.tokens.expiry_date
-      ? Math.max(
-          0,
-          Math.floor((authCodeData.tokens.expiry_date - Date.now()) / 1000)
-        )
-      : 3600;
-
     return c.json({
       access_token: sessionToken,
       token_type: 'Bearer',
-      expires_in: expiresIn,
-      refresh_token: authCodeData.tokens.refresh_token || undefined,
       user_id: authCodeData.user_id,
       user_info: {
         email: authCodeData.user_info.email,
