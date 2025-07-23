@@ -5,6 +5,7 @@ import {
   CalendarNewEventEvent,
   CalendarUpcomingEventEvent,
   GmailImportantEmailEvent,
+  CalendarConflictEvent,
   ChatMessageEvent,
 } from './event.types';
 import { mastra } from '../../mastra';
@@ -188,6 +189,87 @@ export class EventBatchService {
   }
 
   /**
+   * Process a batch of calendar conflict events and generate a summary message
+   */
+  public async processConflictEventBatch(
+    userId: string,
+    conflicts: CalendarConflictEvent[]
+  ): Promise<void> {
+    if (conflicts.length === 0) {
+      return;
+    }
+
+    const batchId = `conflict-batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+    logger.info(`Processing conflict event batch for user ${userId}`, {
+      batchId,
+      conflictCount: conflicts.length,
+      userId,
+    });
+
+    try {
+      // Extract conflict IDs for cache check
+      const conflictIds = conflicts.map(c => c.data.conflictId);
+
+      // Check for duplicate notification using conflict IDs
+      if (
+        await notificationCache.isDuplicateByIds(
+          userId,
+          'conflict',
+          conflictIds
+        )
+      ) {
+        logger.info(
+          `Skipping duplicate conflict notification for user ${userId}`,
+          {
+            batchId,
+            conflictIds,
+            conflictCount: conflicts.length,
+          }
+        );
+        return;
+      }
+
+      // Generate summary message
+      const summaryMessage = await this.generateConflictSummary(conflicts);
+
+      if (summaryMessage) {
+        // Create and broadcast summary event
+        await this.broadcastSummaryMessage(
+          userId,
+          summaryMessage,
+          'conflict',
+          batchId
+        );
+
+        // Mark notification as sent in cache using conflict IDs
+        await notificationCache.markNotifiedByIds(
+          userId,
+          'conflict',
+          conflictIds,
+          {
+            batchId,
+            conflictCount: conflicts.length,
+            conflictIds,
+          }
+        );
+
+        logger.info(`Successfully processed conflict batch ${batchId}`, {
+          userId,
+          conflictCount: conflicts.length,
+          conflictIds,
+        });
+      }
+    } catch (error) {
+      logger.error(`Failed to process conflict event batch ${batchId}`, {
+        error: error instanceof Error ? error.message : String(error),
+        userId,
+        conflictCount: conflicts.length,
+      });
+    }
+  }
+
+  /**
    * Generate AI-powered summary for calendar events
    */
   private async generateCalendarSummary(
@@ -249,6 +331,37 @@ export class EventBatchService {
       logger.error('Error generating email summary', {
         error: error instanceof Error ? error.message : String(error),
         eventCount: events.length,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Generate AI-powered summary for conflict events
+   */
+  private async generateConflictSummary(
+    conflicts: CalendarConflictEvent[]
+  ): Promise<string | null> {
+    try {
+      const generalAgent = mastra.getAgent('generalAgent');
+      if (!generalAgent) {
+        logger.error('General agent not found for conflict summary');
+        return null;
+      }
+
+      const prompt = this.createConflictSummaryPrompt(conflicts);
+
+      const response = await generalAgent.generate(prompt, {
+        maxRetries: 2,
+        maxSteps: 2,
+        maxTokens: 400,
+      });
+
+      return response.text || null;
+    } catch (error) {
+      logger.error('Error generating conflict summary', {
+        error: error instanceof Error ? error.message : String(error),
+        conflictCount: conflicts.length,
       });
       return null;
     }
@@ -317,12 +430,68 @@ Provide a brief, natural summary highlighting the important emails and suggest a
   }
 
   /**
+   * Create prompt for conflict event summary
+   */
+  private createConflictSummaryPrompt(
+    conflicts: CalendarConflictEvent[]
+  ): string {
+    const baseContext = `You are Friday, the user's AI assistant. The user has calendar scheduling conflicts that need attention. Provide a helpful summary with actionable suggestions.`;
+
+    // Group conflicts by severity and type
+    const severityBreakdown = conflicts.reduce(
+      (acc, conflict) => {
+        acc[conflict.data.severity]++;
+        return acc;
+      },
+      { minor: 0, moderate: 0, major: 0 }
+    );
+
+    let conflictDetails = `\nScheduling conflicts detected (${conflicts.length} total):\n`;
+
+    // Add severity breakdown
+    if (severityBreakdown.major > 0) {
+      conflictDetails += `- ${severityBreakdown.major} major conflict${severityBreakdown.major === 1 ? '' : 's'} (significant overlaps)\n`;
+    }
+    if (severityBreakdown.moderate > 0) {
+      conflictDetails += `- ${severityBreakdown.moderate} moderate conflict${severityBreakdown.moderate === 1 ? '' : 's'}\n`;
+    }
+    if (severityBreakdown.minor > 0) {
+      conflictDetails += `- ${severityBreakdown.minor} minor conflict${severityBreakdown.minor === 1 ? '' : 's'} (tight scheduling)\n`;
+    }
+
+    // Add specific conflict examples (up to 3 most severe)
+    const sortedConflicts = conflicts
+      .sort((a, b) => {
+        const severityOrder = { major: 3, moderate: 2, minor: 1 };
+        return severityOrder[b.data.severity] - severityOrder[a.data.severity];
+      })
+      .slice(0, 3);
+
+    conflictDetails += `\nMost critical conflicts:\n`;
+    sortedConflicts.forEach(conflict => {
+      const events = conflict.data.conflictingEvents;
+      const event1 = events[0];
+      const event2 = events[1];
+
+      if (conflict.data.conflictType === 'back_to_back') {
+        conflictDetails += `- "${event1.title}" → "${event2.title}" (back-to-back, ${conflict.data.overlapDuration} min gap)\n`;
+      } else {
+        conflictDetails += `- "${event1.title}" overlaps with "${event2.title}" (${conflict.data.overlapDuration} min ${conflict.data.conflictType.replace('_', ' ')})\n`;
+      }
+    });
+
+    return `${baseContext}${conflictDetails}
+
+Provide a brief, helpful summary of the conflicts and suggest 1-2 specific actions the user should take to resolve them. Be conversational and actionable. Keep it under 3-4 sentences.`;
+  }
+
+  /**
    * Broadcast summary message as a chat event
    */
   private async broadcastSummaryMessage(
     userId: string,
     message: string,
-    type: 'calendar' | 'email',
+    type: 'calendar' | 'email' | 'conflict',
     batchId: string
   ): Promise<void> {
     try {

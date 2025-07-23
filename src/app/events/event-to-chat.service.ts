@@ -78,6 +78,7 @@ export class EventToChatService {
       EventType.CALENDAR_NEW_EVENT,
       EventType.CALENDAR_UPCOMING_EVENT,
       EventType.CALENDAR_EVENT_REMINDER,
+      EventType.CALENDAR_CONFLICT_DETECTED,
       EventType.CALENDAR_BATCH_SUMMARY,
     ].includes(event.type);
   }

@@ -89,6 +89,7 @@ export class EventSubscriptionManager {
       EventType.CALENDAR_UPCOMING_EVENT,
       EventType.CALENDAR_NEW_EVENT,
       EventType.CALENDAR_EVENT_REMINDER,
+      EventType.CALENDAR_CONFLICT_DETECTED,
       EventType.CHAT_MESSAGE,
     ];
 

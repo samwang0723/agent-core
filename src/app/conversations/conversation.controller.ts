@@ -9,8 +9,6 @@ import { memoryPatterns } from '../../mastra/memory/memory.dto';
 import { messageHistory } from './history.service';
 import { generateRequestContext } from './conversation.service';
 import { mastra } from '../../mastra';
-// import { createModelByKey } from '../../mastra/models/model.service';
-// import { streamText } from 'ai';
 
 type Env = {
   Variables: {
@@ -158,7 +156,7 @@ app.post('/stream', requireAuth, async c => {
 
         // Adapt Mastra vNext stream to a simple text stream - OPTIMIZED VERSION
         const reader = (
-          networkResult.stream as ReadableStream<{
+          networkResult.stream as unknown as ReadableStream<{
             type: string;
             argsTextDelta?: string;
           }>
@@ -220,7 +218,7 @@ app.post('/stream', requireAuth, async c => {
             threadId,
             maxRetries: 1,
             maxSteps: 5,
-            maxTokens: 4096,
+            maxTokens: 600,
             onFinish: () => {
               const totalDuration = performance.now() - requestStartTime;
               logger.info(
@@ -436,7 +434,7 @@ app.post('/', requireAuth, async c => {
           threadId,
           maxRetries: 1,
           maxSteps: 5,
-          maxTokens: 4096,
+          maxTokens: 600,
           runtimeContext,
           context: [
             { role: 'system', content: localeSystemMessage },

@@ -13,6 +13,8 @@ export enum EventType {
   CALENDAR_UPCOMING_EVENT = 'calendar_upcoming_event',
   CALENDAR_NEW_EVENT = 'calendar_new_event',
   CALENDAR_EVENT_REMINDER = 'calendar_event_reminder',
+  CALENDAR_CONFLICT_DETECTED = 'calendar_conflict_detected',
+  CALENDAR_CONFLICT_BATCH_SUMMARY = 'calendar_conflict_batch_summary',
   CALENDAR_BATCH_SUMMARY = 'calendar_batch_summary',
   EMAIL_BATCH_SUMMARY = 'email_batch_summary',
   SYSTEM_NOTIFICATION = 'system_notification',
@@ -91,7 +93,7 @@ export interface ChatMessageEvent extends BaseEvent {
     triggerEventType?: EventType;
     triggerEventId?: string;
     isBatchSummary?: boolean;
-    batchType?: 'calendar' | 'email';
+    batchType?: 'calendar' | 'email' | 'conflict';
     batchId?: string;
   };
 }
@@ -106,6 +108,26 @@ export interface CalendarBatchSummaryEvent extends BaseEvent {
   };
 }
 
+export interface CalendarConflictBatchSummaryEvent extends BaseEvent {
+  type: EventType.CALENDAR_CONFLICT_BATCH_SUMMARY;
+  data: {
+    batchId: string;
+    conflictCount: number;
+    severityBreakdown: {
+      minor: number;
+      moderate: number;
+      major: number;
+    };
+    conflictTypes: {
+      exact_overlap: number;
+      partial_overlap: number;
+      back_to_back: number;
+    };
+    conflicts: CalendarConflictEvent[];
+    summary: string;
+  };
+}
+
 export interface EmailBatchSummaryEvent extends BaseEvent {
   type: EventType.EMAIL_BATCH_SUMMARY;
   data: {
@@ -116,10 +138,35 @@ export interface EmailBatchSummaryEvent extends BaseEvent {
   };
 }
 
+export interface CalendarConflictEvent extends BaseEvent {
+  type: EventType.CALENDAR_CONFLICT_DETECTED;
+  data: {
+    conflictId: string;
+    conflictingEvents: {
+      eventId: string;
+      title: string;
+      startTime: Date;
+      endTime: Date;
+      location?: string;
+    }[];
+    conflictType: 'exact_overlap' | 'partial_overlap' | 'back_to_back';
+    severity: 'minor' | 'moderate' | 'major';
+    overlapDuration?: number; // minutes of overlap (for overlaps) or gap duration (for back-to-back)
+    suggestions: {
+      action: 'reschedule' | 'shorten' | 'cancel' | 'accept_conflict';
+      description: string;
+      eventId?: string;
+    }[];
+    detectedAt: Date;
+  };
+}
+
 export type Event =
   | GmailImportantEmailEvent
   | CalendarUpcomingEventEvent
   | CalendarNewEventEvent
+  | CalendarConflictEvent
+  | CalendarConflictBatchSummaryEvent
   | CalendarBatchSummaryEvent
   | EmailBatchSummaryEvent
   | SystemNotificationEvent

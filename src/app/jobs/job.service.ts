@@ -5,8 +5,8 @@ import { CalendarService } from '../calendar';
 import { task, wait, schedules } from '@trigger.dev/sdk/v3';
 import { getActiveUsersWithGoogleIntegration } from '../users/user.repository';
 import { EventDetector } from '../events/event.detector';
-import { eventBroadcaster } from '../events/event.service';
 import { eventBatchService } from '../events/event-batch.service';
+import { EventType } from '../events/event.types';
 
 export const importGmailTask = task({
   id: 'import-gmail',
@@ -166,15 +166,35 @@ async function importCalendar(token: string, userId: string): Promise<string> {
         );
 
         if (calendarEvents.length > 0) {
-          // Process calendar events as a batch for summary
-          await eventBatchService.processCalendarEventBatch(
-            userId,
-            calendarEvents
+          // Separate conflict events from regular calendar events
+          const conflictEvents = calendarEvents.filter(
+            e => e.type === EventType.CALENDAR_CONFLICT_DETECTED
+          );
+          const regularCalendarEvents = calendarEvents.filter(
+            e => e.type !== EventType.CALENDAR_CONFLICT_DETECTED
           );
 
-          logger.info(
-            `Processed ${calendarEvents.length} calendar events as batch for user ${userId}`
-          );
+          // Process regular calendar events as a batch for summary
+          if (regularCalendarEvents.length > 0) {
+            await eventBatchService.processCalendarEventBatch(
+              userId,
+              regularCalendarEvents
+            );
+            logger.info(
+              `Processed ${regularCalendarEvents.length} calendar events as batch for user ${userId}`
+            );
+          }
+
+          // Process conflict events as a batch for summary
+          if (conflictEvents.length > 0) {
+            await eventBatchService.processConflictEventBatch(
+              userId,
+              conflictEvents
+            );
+            logger.info(
+              `Processed ${conflictEvents.length} conflict events as batch for user ${userId}`
+            );
+          }
         } else {
           logger.info(
             `No new calendar events to process in the background for user ${userId}`

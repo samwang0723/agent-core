@@ -5,9 +5,11 @@ import {
   GmailImportantEmailEvent,
   CalendarUpcomingEventEvent,
   CalendarNewEventEvent,
+  CalendarConflictEvent,
 } from './event.types';
 import { GmailMessage } from '../emails/email.dto';
 import { CalendarEvent } from '../calendar/calendar.dto';
+import { ConflictDetectionService } from './conflict-detection.service';
 import logger from '../utils/logger';
 
 export class EventDetector {
@@ -114,8 +116,8 @@ export class EventDetector {
     userId: string,
     newEvents: (CalendarEvent & { id: string })[],
     existingEventIds: Set<string>
-  ): (CalendarUpcomingEventEvent | CalendarNewEventEvent)[] {
-    const events: (CalendarUpcomingEventEvent | CalendarNewEventEvent)[] = [];
+  ): (CalendarUpcomingEventEvent | CalendarNewEventEvent | CalendarConflictEvent)[] {
+    const events: (CalendarUpcomingEventEvent | CalendarNewEventEvent | CalendarConflictEvent)[] = [];
     const now = new Date();
 
     for (const event of newEvents) {
@@ -187,6 +189,24 @@ export class EventDetector {
           minutesUntilStart,
           reminder,
         });
+      }
+    }
+
+    // Detect calendar conflicts among all events
+    if (newEvents.length > 1) {
+      const conflictAnalysis = ConflictDetectionService.analyzeEventConflicts(
+        userId,
+        newEvents,
+        {
+          enableBackToBackDetection: true,
+          backToBackThreshold: 0, // Consider touching events as potential conflicts
+          minOverlapForDetection: 1, // 1 minute minimum overlap
+        }
+      );
+
+      if (conflictAnalysis.hasConflicts) {
+        events.push(...conflictAnalysis.conflicts);
+        ConflictDetectionService.logConflictDetection(conflictAnalysis.conflicts);
       }
     }
 

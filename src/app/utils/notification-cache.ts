@@ -20,7 +20,7 @@ export class NotificationCache {
 
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
     this.redis = createClient({ url: redisUrl });
-    
+
     this.initializeRedis();
   }
 
@@ -76,7 +76,7 @@ export class NotificationCache {
 
   public async isDuplicateByIds(
     userId: string,
-    type: 'email' | 'calendar',
+    type: 'email' | 'calendar' | 'conflict',
     ids: string[]
   ): Promise<boolean> {
     if (!this.isConnected) {
@@ -115,7 +115,9 @@ export class NotificationCache {
 
       return true;
     } catch (error) {
-      logger.error('Error checking duplicate notification by IDs in Redis', { error });
+      logger.error('Error checking duplicate notification by IDs in Redis', {
+        error,
+      });
       return false;
     }
   }
@@ -154,7 +156,7 @@ export class NotificationCache {
 
   public async markNotifiedByIds(
     userId: string,
-    type: 'email' | 'calendar',
+    type: 'email' | 'calendar' | 'conflict',
     ids: string[],
     data?: unknown
   ): Promise<void> {
@@ -210,11 +212,13 @@ export class NotificationCache {
       this.isConnected = true;
       logger.info('Redis connected successfully for notification cache');
     } catch (error) {
-      logger.error('Failed to connect to Redis for notification cache', { error });
+      logger.error('Failed to connect to Redis for notification cache', {
+        error,
+      });
       this.isConnected = false;
     }
 
-    this.redis.on('error', (error) => {
+    this.redis.on('error', error => {
       logger.error('Redis connection error', { error });
       this.isConnected = false;
     });
@@ -225,9 +229,13 @@ export class NotificationCache {
     });
   }
 
-  public async getCacheStats(): Promise<{ size: number; thresholdMinutes: number; isConnected: boolean }> {
+  public async getCacheStats(): Promise<{
+    size: number;
+    thresholdMinutes: number;
+    isConnected: boolean;
+  }> {
     let size = 0;
-    
+
     if (this.isConnected) {
       try {
         const info = await this.redis.info('keyspace');
