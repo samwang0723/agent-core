@@ -107,8 +107,10 @@ CREATE TABLE sessions (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     data JSONB NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    timezone TEXT
 );
 
 CREATE INDEX idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
+CREATE INDEX idx_sessions_timezone ON sessions(timezone);

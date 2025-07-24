@@ -19,6 +19,7 @@ export interface Session {
   refreshToken?: string;
   tokenExpiryDate?: number;
   createdAt: Date;
+  timezone?: string;
 }
 
 const sessionService = new SessionService();

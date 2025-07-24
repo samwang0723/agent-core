@@ -72,7 +72,9 @@ export async function generateRequestContext(
   let cachedUserData = getCachedData(cacheKey);
 
   // Extract essential headers and detect locale
-  const timezone = context.req.header('x-client-timezone') || 'UTC';
+  // Prioritize session timezone over header timezone
+  const timezone =
+    session.timezone || context.req.header('x-client-timezone') || 'UTC';
   const locale = detectLocale(context);
 
   // Parallel processing of independent operations
