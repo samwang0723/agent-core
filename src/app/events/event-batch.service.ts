@@ -435,7 +435,7 @@ Provide a brief, natural summary highlighting the important emails and suggest a
   private createConflictSummaryPrompt(
     conflicts: CalendarConflictEvent[]
   ): string {
-    const baseContext = `You are Friday, the user's AI assistant. The user has calendar scheduling conflicts that need attention. Provide a helpful summary with actionable suggestions.`;
+    const baseContext = `You are Friday, the user's AI assistant. The user has calendar scheduling conflicts that need attention. Provide a helpful summary with actionable suggestions, only mention events after current datetime and within today.`;
 
     // Group conflicts by severity and type
     const severityBreakdown = conflicts.reduce(

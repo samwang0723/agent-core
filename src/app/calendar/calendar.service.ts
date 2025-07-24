@@ -31,17 +31,17 @@ export class CalendarService {
       throw new Error('Calendar service not initialized.');
     }
 
-    const today = new Date();
+    const startOfToday = new Date();
     // Set to start of today (00:00:00)
-    const startOfToday = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate()
-    );
+    // const startOfToday = new Date(
+    //   today.getFullYear(),
+    //   today.getMonth(),
+    //   today.getDate()
+    // );
 
-    const endOfTwoWeeks = new Date(startOfToday);
-    endOfTwoWeeks.setDate(endOfTwoWeeks.getDate() + 14); // Two weeks from today
-    endOfTwoWeeks.setMilliseconds(-1); // End of the day before
+    const endOfTwoDays = new Date(startOfToday);
+    endOfTwoDays.setDate(endOfTwoDays.getDate() + 2); // Two days from today
+    endOfTwoDays.setMilliseconds(-1); // End of the day before
 
     const listCalendarsResponse = (await this.client.callTool(
       'gcalendar_list_calendars',
@@ -66,7 +66,7 @@ export class CalendarService {
     const response = (await this.client.callTool('gcalendar_list_events', {
       calendarId: primaryCalendar?.id || 'primary',
       timeMin: startOfToday.toISOString(),
-      timeMax: endOfTwoWeeks.toISOString(),
+      timeMax: endOfTwoDays.toISOString(),
       maxResults: 20,
     })) as GoogleCalendarListEventsResponse;
 

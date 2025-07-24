@@ -125,7 +125,7 @@ export class EventToChatService {
    * Create a prompt for the AI to generate a message about the calendar event
    */
   private createEventPrompt(event: Event): string {
-    const baseContext = `You are Friday, the user's AI assistant. A calendar event was just detected. Respond naturally and conversationally as if you're proactively helping manage their schedule. Keep it brief and helpful.`;
+    const baseContext = `You are Friday, the user's AI assistant. A calendar event was just detected. Respond naturally and conversationally as if you're proactively helping manage their schedule, pay attention to the datetime. Keep it brief and helpful.`;
 
     switch (event.type) {
       case EventType.CALENDAR_NEW_EVENT:
@@ -168,7 +168,7 @@ export class EventToChatService {
 
 A new event was just added to the calendar: ${eventDetails}.
 
-Respond naturally as their assistant, acknowledging the new event and offering brief, helpful assistance if appropriate (like asking if they need preparation help or noting any relevant details). Keep it conversational and concise.`;
+Respond naturally as their assistant, acknowledging the new event and offering brief, helpful assistance if appropriate (like asking if they need preparation help or noting any relevant details), pay attention to the datetime. Keep it conversational and concise.`;
   }
 
   /**
@@ -202,7 +202,7 @@ Respond naturally as their assistant, acknowledging the new event and offering b
 
 Upcoming event reminder: ${eventDetails}.
 
-Respond naturally as their assistant with a friendly heads-up about the upcoming event. Keep it brief and helpful - maybe mention preparation if relevant. Be conversational.`;
+Respond naturally as their assistant with a friendly heads-up about the upcoming event, pay attention to the datetime. Keep it brief and helpful - maybe mention preparation if relevant. Be conversational.`;
   }
 
   /**
