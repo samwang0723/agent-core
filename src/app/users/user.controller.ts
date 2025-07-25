@@ -21,6 +21,8 @@ import {
   storeAuthCode,
   getAuthCode,
   deleteAuthCode,
+  storeTokenResponse,
+  getTokenResponse,
 } from './user.service';
 import { importCalendarTask, importGmailTask } from '../jobs/job.service';
 
@@ -714,18 +716,30 @@ app.post('/oauth/token', async c => {
       );
     }
 
+    // Check if we already have a cached response for this code (handles duplicate requests)
+    console.log('POST /oauth/token - processing code:', code);
+    const cachedResponse = await getTokenResponse(code);
+    if (cachedResponse) {
+      console.log('Returning cached token response for duplicate request');
+      return c.json(cachedResponse);
+    }
+
     // Retrieve authorization code data
     const authCodeData = await getAuthCode(code);
     if (!authCodeData) {
+      console.log('Auth code not found - possibly already used or expired');
       throw createServerError(
         ErrorCodes.INVALID_TOKEN,
         'Invalid or expired authorization code'
       );
     }
 
+    console.log('Auth code found, processing token exchange...');
+    // Immediately delete the auth code to prevent reuse
+    await deleteAuthCode(code);
+
     // Check if code has expired
     if (Date.now() > authCodeData.expires_at) {
-      await deleteAuthCode(code);
       throw createServerError(
         ErrorCodes.INVALID_TOKEN,
         'Authorization code has expired'
@@ -776,10 +790,7 @@ app.post('/oauth/token', async c => {
       }
     });
 
-    // Clean up authorization code
-    await deleteAuthCode(code);
-
-    return c.json({
+    const tokenResponse = {
       access_token: sessionToken,
       token_type: 'Bearer',
       user_id: authCodeData.user_id,
@@ -788,7 +799,12 @@ app.post('/oauth/token', async c => {
         name: authCodeData.user_info.name,
         picture: authCodeData.user_info.picture,
       },
-    });
+    };
+
+    // Cache the response to handle duplicate requests
+    await storeTokenResponse(code, tokenResponse);
+
+    return c.json(tokenResponse);
   } else if (grant_type === 'refresh_token') {
     if (!refresh_token) {
       throw createServerError(
