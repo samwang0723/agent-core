@@ -30,6 +30,7 @@ export class EventBatchService {
    */
   public async processCalendarEventBatch(
     userId: string,
+    locale: string,
     events: (CalendarNewEventEvent | CalendarUpcomingEventEvent)[]
   ): Promise<void> {
     if (events.length === 0) {
@@ -42,6 +43,7 @@ export class EventBatchService {
       batchId,
       eventCount: events.length,
       userId,
+      locale,
     });
 
     try {
@@ -78,7 +80,8 @@ export class EventBatchService {
       // Generate summary message
       const summaryMessage = await this.generateCalendarSummary(
         newEvents,
-        upcomingEvents
+        upcomingEvents,
+        locale
       );
 
       if (summaryMessage) {
@@ -123,6 +126,7 @@ export class EventBatchService {
    */
   public async processEmailEventBatch(
     userId: string,
+    locale: string,
     events: GmailImportantEmailEvent[]
   ): Promise<void> {
     if (events.length === 0) {
@@ -135,6 +139,7 @@ export class EventBatchService {
       batchId,
       eventCount: events.length,
       userId,
+      locale,
     });
 
     try {
@@ -155,7 +160,7 @@ export class EventBatchService {
       }
 
       // Generate summary message
-      const summaryMessage = await this.generateEmailSummary(events);
+      const summaryMessage = await this.generateEmailSummary(events, locale);
 
       if (summaryMessage) {
         // Create and broadcast summary event
@@ -193,6 +198,7 @@ export class EventBatchService {
    */
   public async processConflictEventBatch(
     userId: string,
+    locale: string,
     conflicts: CalendarConflictEvent[]
   ): Promise<void> {
     if (conflicts.length === 0) {
@@ -205,6 +211,7 @@ export class EventBatchService {
       batchId,
       conflictCount: conflicts.length,
       userId,
+      locale,
     });
 
     try {
@@ -231,7 +238,10 @@ export class EventBatchService {
       }
 
       // Generate summary message
-      const summaryMessage = await this.generateConflictSummary(conflicts);
+      const summaryMessage = await this.generateConflictSummary(
+        conflicts,
+        locale
+      );
 
       if (summaryMessage) {
         // Create and broadcast summary event
@@ -274,7 +284,8 @@ export class EventBatchService {
    */
   private async generateCalendarSummary(
     newEvents: CalendarNewEventEvent[],
-    upcomingEvents: CalendarUpcomingEventEvent[]
+    upcomingEvents: CalendarUpcomingEventEvent[],
+    locale: string
   ): Promise<string | null> {
     try {
       const generalAgent = mastra.getAgent('generalAgent');
@@ -285,7 +296,8 @@ export class EventBatchService {
 
       const prompt = this.createCalendarSummaryPrompt(
         newEvents,
-        upcomingEvents
+        upcomingEvents,
+        locale
       );
 
       const response = await generalAgent.generate(prompt, {
@@ -309,7 +321,8 @@ export class EventBatchService {
    * Generate AI-powered summary for email events
    */
   private async generateEmailSummary(
-    events: GmailImportantEmailEvent[]
+    events: GmailImportantEmailEvent[],
+    locale: string
   ): Promise<string | null> {
     try {
       const generalAgent = mastra.getAgent('generalAgent');
@@ -318,7 +331,7 @@ export class EventBatchService {
         return null;
       }
 
-      const prompt = this.createEmailSummaryPrompt(events);
+      const prompt = this.createEmailSummaryPrompt(events, locale);
 
       const response = await generalAgent.generate(prompt, {
         maxRetries: 2,
@@ -340,7 +353,8 @@ export class EventBatchService {
    * Generate AI-powered summary for conflict events
    */
   private async generateConflictSummary(
-    conflicts: CalendarConflictEvent[]
+    conflicts: CalendarConflictEvent[],
+    locale: string
   ): Promise<string | null> {
     try {
       const generalAgent = mastra.getAgent('generalAgent');
@@ -349,7 +363,7 @@ export class EventBatchService {
         return null;
       }
 
-      const prompt = this.createConflictSummaryPrompt(conflicts);
+      const prompt = this.createConflictSummaryPrompt(conflicts, locale);
 
       const response = await generalAgent.generate(prompt, {
         maxRetries: 2,
@@ -372,9 +386,10 @@ export class EventBatchService {
    */
   private createCalendarSummaryPrompt(
     newEvents: CalendarNewEventEvent[],
-    upcomingEvents: CalendarUpcomingEventEvent[]
+    upcomingEvents: CalendarUpcomingEventEvent[],
+    locale: string
   ): string {
-    const baseContext = `You are Friday, the user's AI assistant. Provide a concise, helpful summary of calendar updates. Be conversational and actionable.`;
+    const baseContext = `You are Friday, the user's AI assistant. Provide a concise, helpful summary of calendar updates, please use hours, days in the summary if minutes is too large. Be conversational and actionable. ALWAYS respond with Language locale ${locale}.`;
 
     let eventDetails = '';
 
@@ -415,8 +430,11 @@ Provide a brief, natural summary mentioning the key events and any preparation n
   /**
    * Create prompt for email event summary
    */
-  private createEmailSummaryPrompt(events: GmailImportantEmailEvent[]): string {
-    const baseContext = `You are Friday, the user's AI assistant. Provide a concise summary of important emails received. Be helpful and actionable.`;
+  private createEmailSummaryPrompt(
+    events: GmailImportantEmailEvent[],
+    locale: string
+  ): string {
+    const baseContext = `You are Friday, the user's AI assistant. Provide a concise summary of important emails received. Be helpful and actionable. ALWAYS respond with Language locale ${locale}.`;
 
     let emailDetails = `\nImportant emails received:\n`;
     events.forEach(event => {
@@ -433,9 +451,10 @@ Provide a brief, natural summary highlighting the important emails and suggest a
    * Create prompt for conflict event summary
    */
   private createConflictSummaryPrompt(
-    conflicts: CalendarConflictEvent[]
+    conflicts: CalendarConflictEvent[],
+    locale: string
   ): string {
-    const baseContext = `You are Friday, the user's AI assistant. The user has calendar scheduling conflicts that need attention. Provide a helpful summary with actionable suggestions, only mention events after current datetime and within today.`;
+    const baseContext = `You are Friday, the user's AI assistant. The user has calendar scheduling conflicts that need attention, please use hours, days in the summary if minutes is too large. Provide a helpful summary with actionable suggestions, only mention events after current datetime and within today. ALWAYS respond with Language locale ${locale}.`;
 
     // Group conflicts by severity and type
     const severityBreakdown = conflicts.reduce(

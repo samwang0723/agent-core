@@ -43,8 +43,21 @@ export const getSessionById = async (
   id: string
 ): Promise<StoredSession | null> => {
   const result = await query<StoredSession>(
-    'SELECT * FROM sessions WHERE id = $1 AND expires_at > NOW()',
+    'SELECT * FROM sessions WHERE id = $1 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
     [id]
+  );
+  if (result.rows.length === 0) {
+    return null;
+  }
+  return result.rows[0];
+};
+
+export const getSessionByUserId = async (
+  userId: string
+): Promise<StoredSession | null> => {
+  const result = await query<StoredSession>(
+    'SELECT * FROM sessions WHERE user_id = $1 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
+    [userId]
   );
   if (result.rows.length === 0) {
     return null;
@@ -149,14 +162,20 @@ export const deleteIntegration = async (
 };
 
 export const getActiveUsersWithGoogleIntegration = async (): Promise<
-  Array<{ user_id: string; access_token: string; refresh_token?: string }>
+  Array<{
+    user_id: string;
+    access_token: string;
+    refresh_token?: string;
+    locale?: string;
+  }>
 > => {
   const result = await query<{
     user_id: string;
     access_token: string;
     refresh_token?: string;
+    locale?: string;
   }>(
-    `SELECT user_id, access_token, refresh_token 
+    `SELECT user_id, access_token, refresh_token, locale 
      FROM integrations 
      WHERE provider = 'google' 
      AND access_token IS NOT NULL 

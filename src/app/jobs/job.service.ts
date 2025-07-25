@@ -3,7 +3,10 @@ import { GmailService } from '../emails';
 import { embeddingService } from '../embeddings';
 import { CalendarService } from '../calendar';
 import { task, wait, schedules } from '@trigger.dev/sdk/v3';
-import { getActiveUsersWithGoogleIntegration } from '../users/user.repository';
+import {
+  getActiveUsersWithGoogleIntegration,
+  getSessionByUserId,
+} from '../users/user.repository';
 import { EventDetector } from '../events/event.detector';
 import { eventBatchService } from '../events/event-batch.service';
 import { EventType } from '../events/event.types';
@@ -66,8 +69,10 @@ async function importGmail(token: string, userId: string): Promise<string> {
 
         if (importantEmailEvents.length > 0) {
           // Process emails as a batch for summary
+          const session = await getSessionByUserId(userId);
           await eventBatchService.processEmailEventBatch(
             userId,
+            session?.locale || 'en',
             importantEmailEvents
           );
 
@@ -126,6 +131,7 @@ async function importCalendar(token: string, userId: string): Promise<string> {
       '../calendar/calendar.repository'
     );
     const existingEventIds = await getExistingCalendarEventIds(userId);
+    const session = await getSessionByUserId(userId);
 
     const eventResponse = await calendarService.getCalendarEvents();
     const events = eventResponse.events || [];
@@ -178,6 +184,7 @@ async function importCalendar(token: string, userId: string): Promise<string> {
           if (regularCalendarEvents.length > 0) {
             await eventBatchService.processCalendarEventBatch(
               userId,
+              session?.locale || 'en',
               regularCalendarEvents
             );
             logger.info(
@@ -189,6 +196,7 @@ async function importCalendar(token: string, userId: string): Promise<string> {
           if (conflictEvents.length > 0) {
             await eventBatchService.processConflictEventBatch(
               userId,
+              session?.locale || 'en',
               conflictEvents
             );
             logger.info(
