@@ -166,16 +166,14 @@ export const getActiveUsersWithGoogleIntegration = async (): Promise<
     user_id: string;
     access_token: string;
     refresh_token?: string;
-    locale?: string;
   }>
 > => {
   const result = await query<{
     user_id: string;
     access_token: string;
     refresh_token?: string;
-    locale?: string;
   }>(
-    `SELECT user_id, access_token, refresh_token, locale 
+    `SELECT user_id, access_token, refresh_token 
      FROM integrations 
      WHERE provider = 'google' 
      AND access_token IS NOT NULL 
