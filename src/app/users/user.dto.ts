@@ -19,4 +19,5 @@ export interface StoredSession {
   expires_at: Date;
   created_at: Date;
   timezone?: string;
+  locale?: string;
 }

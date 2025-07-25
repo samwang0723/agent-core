@@ -108,7 +108,8 @@ CREATE TABLE sessions (
     data JSONB NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    timezone TEXT
+    timezone TEXT,
+    locale TEXT
 );
 
 CREATE INDEX idx_sessions_user_id ON sessions(user_id);

@@ -26,8 +26,15 @@ export const createSession = async (
   expiresAt: Date
 ): Promise<StoredSession> => {
   const result = await query<StoredSession>(
-    'INSERT INTO sessions (id, user_id, data, expires_at, timezone) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-    [id, userId, JSON.stringify(data), expiresAt, data.timezone || null]
+    'INSERT INTO sessions (id, user_id, data, expires_at, timezone, locale) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+    [
+      id,
+      userId,
+      JSON.stringify(data),
+      expiresAt,
+      data.timezone || null,
+      data.locale || null,
+    ]
   );
   return result.rows[0];
 };
@@ -54,8 +61,8 @@ export const updateSession = async (
   data: Session
 ): Promise<StoredSession | null> => {
   const result = await query<StoredSession>(
-    'UPDATE sessions SET data = $1, timezone = $2 WHERE id = $3 RETURNING *',
-    [JSON.stringify(data), data.timezone || null, id]
+    'UPDATE sessions SET data = $1, timezone = $2, locale = $3 WHERE id = $4 RETURNING *',
+    [JSON.stringify(data), data.timezone || null, data.locale || null, id]
   );
   if (result.rows.length === 0) {
     return null;

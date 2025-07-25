@@ -414,6 +414,7 @@ app.get('/google/callback', async c => {
 
     // Extract timezone from header
     const timezone = c.req.header('X-Client-Timezone') || 'UTC';
+    const locale = c.req.header('X-Locale') || 'en';
 
     const session: Session = {
       id: user.id,
@@ -426,6 +427,7 @@ app.get('/google/callback', async c => {
       tokenExpiryDate: tokens.expiry_date || undefined,
       createdAt: new Date(),
       timezone,
+      locale,
     };
 
     // Store session
@@ -751,6 +753,7 @@ app.post('/oauth/token', async c => {
 
     // Extract timezone from header
     const timezone = c.req.header('X-Client-Timezone') || 'UTC';
+    const locale = c.req.header('X-Locale') || 'en';
 
     const session: Session = {
       id: authCodeData.user_id,
@@ -763,6 +766,7 @@ app.post('/oauth/token', async c => {
       tokenExpiryDate: authCodeData.tokens.expiry_date || undefined,
       createdAt: new Date(),
       timezone,
+      locale,
     };
     await storeUserSession(sessionToken, session);
 
