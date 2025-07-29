@@ -57,12 +57,16 @@ export class CalendarService {
       );
     }
 
-    const response = (await this.client.callTool('gcalendar_list_events', {
-      calendarId: primaryCalendar?.id || 'primary',
-      timeMin: startOfToday.toISOString(),
-      timeMax: endOfTwoDays.toISOString(),
-      maxResults: 20,
-    })) as GoogleCalendarListEventsResponse;
+    const response = (await this.client.callTool(
+      'gcalendar_list_events',
+      {
+        calendarId: primaryCalendar?.id || 'primary',
+        timeMin: startOfToday.toISOString(),
+        timeMax: endOfTwoDays.toISOString(),
+        maxResults: 20,
+      },
+      this.accessToken!
+    )) as GoogleCalendarListEventsResponse;
 
     // Process the response to strip HTML tags from event descriptions
     if (response.events && Array.isArray(response.events)) {
