@@ -12,18 +12,32 @@ import { JsonSchema } from './mcp.dto';
 import { UserRuntimeContext } from '../../utils/context';
 import { RuntimeContext } from '@mastra/core/di';
 
+// Utility function to mask sensitive data in headers
+function maskSensitiveHeaders(
+  headers: Record<string, string>
+): Record<string, string> {
+  const sensitiveKeys = ['authorization', 'cookie', 'x-api-key', 'api-key'];
+  const masked = { ...headers };
+
+  for (const [key, value] of Object.entries(masked)) {
+    if (sensitiveKeys.includes(key.toLowerCase()) && value) {
+      // Mask the token but show first/last few characters for debugging
+      if (value.length > 10) {
+        masked[key] =
+          `${value.substring(0, 6)}...${value.substring(value.length - 4)}`;
+      } else {
+        masked[key] = '***[MASKED]***';
+      }
+    }
+  }
+
+  return masked;
+}
+
 export class McpClient {
   private sessionId: string | null = null;
   private availableTools: McpTool[] = [];
-  private accessToken: string | null = null;
   constructor(private config: McpServerConfig) {}
-
-  /**
-   * Set the OAuth access token for authenticated requests
-   */
-  setAccessToken(token: string | null): void {
-    this.accessToken = token;
-  }
 
   async initialize(): Promise<void> {
     if (!this.config.enabled) {
@@ -204,7 +218,7 @@ export class McpClient {
   async callTool(
     name: string,
     parameters: Record<string, unknown> | ToolExecutionContext<z.ZodType>,
-    requiresAuth?: 'google' | 'whatsapp' | 'github'
+    authToken?: string
   ): Promise<unknown> {
     if (!this.sessionId) {
       throw new Error('MCP session not initialized');
@@ -216,7 +230,6 @@ export class McpClient {
 
     // Check if authentication is required
     const needsAuth =
-      requiresAuth ||
       this.config.requiresAuth ||
       this.availableTools.find(t => t.name === name)?.requiresAuth;
 
@@ -229,17 +242,13 @@ export class McpClient {
     // Add authorization header if needed
     if (needsAuth) {
       logger.debug(
-        `[${name}] Tool: needsAuth: ${needsAuth}, googleAuthToken: ${googleAuthToken}, accessToken: ${this.accessToken}`
+        `[${name}] Tool: needsAuth: ${needsAuth}, googleAuthToken: ${googleAuthToken}, authToken: ${authToken}`
       );
-      if (needsAuth === 'google' && googleAuthToken) {
-        headers['Authorization'] = `Bearer ${googleAuthToken}`;
+      const accessToken = authToken || googleAuthToken;
+      if (needsAuth === 'google' && accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
         logger.debug(
           `[${name}] Tool: Authorization header: ${headers['Authorization']}`
-        );
-      } else if (this.accessToken) {
-        headers['Authorization'] = `Bearer ${this.accessToken}`;
-        logger.debug(
-          `[${name}] Tool: (global) Authorization header: ${headers['Authorization']}`
         );
       } else {
         throw new Error(
@@ -262,7 +271,7 @@ export class McpClient {
     try {
       const startTime = Date.now();
       logger.info(
-        `Calling tool ${name} with parameters: ${JSON.stringify(payload)}, headers: ${JSON.stringify(headers)}`
+        `Calling tool ${name} with parameters: ${JSON.stringify(payload)}, headers: ${JSON.stringify(maskSensitiveHeaders(headers))}`
       );
       const response = await fetch(this.config.url, {
         method: 'POST',
@@ -286,9 +295,7 @@ export class McpClient {
       const result = this.parseResponse(responseText);
       const endTime = Date.now();
       const duration = endTime - startTime;
-      logger.info(
-        `Tool call result: ${JSON.stringify(result).slice(0, 200)}... in ${duration}ms`
-      );
+      logger.info(`Tool call result responded in ${duration}ms`);
 
       if (result.error) {
         const errorMessage = `Tool execution error: ${result.error.message}`;

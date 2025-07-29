@@ -12,6 +12,7 @@ import { toolRegistry } from '../../mastra/tools/registry';
 
 export class CalendarService {
   private client: McpClient | undefined = undefined;
+  private accessToken: string | null = null;
 
   public async initialize(token: string): Promise<void> {
     try {
@@ -19,7 +20,7 @@ export class CalendarService {
       if (!this.client) {
         throw new Error('Google Assistant MCP client not found.');
       }
-      toolRegistry.setAccessTokenForServer('google-assistant', token);
+      this.accessToken = token;
     } catch (error) {
       logger.error('Error initializing Gmail service', { error });
       throw new Error('Failed to initialize Gmail service.');
@@ -32,13 +33,6 @@ export class CalendarService {
     }
 
     const startOfToday = new Date();
-    // Set to start of today (00:00:00)
-    // const startOfToday = new Date(
-    //   today.getFullYear(),
-    //   today.getMonth(),
-    //   today.getDate()
-    // );
-
     const endOfTwoDays = new Date(startOfToday);
     endOfTwoDays.setDate(endOfTwoDays.getDate() + 2); // Two days from today
     endOfTwoDays.setMilliseconds(-1); // End of the day before
@@ -46,7 +40,7 @@ export class CalendarService {
     const listCalendarsResponse = (await this.client.callTool(
       'gcalendar_list_calendars',
       {},
-      'google'
+      this.accessToken!
     )) as GoogleCalendarsResponse;
     const calendars = listCalendarsResponse.response || [];
 

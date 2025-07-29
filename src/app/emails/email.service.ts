@@ -6,6 +6,7 @@ import { McpClient } from '../../mastra/tools/remote/mcp.service';
 
 export class GmailService {
   private client: McpClient | undefined = undefined;
+  private accessToken: string | null = null;
 
   public async initialize(token: string): Promise<void> {
     try {
@@ -13,7 +14,7 @@ export class GmailService {
       if (!this.client) {
         throw new Error('Google Assistant MCP client not found.');
       }
-      toolRegistry.setAccessTokenForServer('google-assistant', token);
+      this.accessToken = token;
     } catch (error) {
       logger.error('Error initializing Gmail service', { error });
       throw new Error('Failed to initialize Gmail service.');
@@ -31,7 +32,7 @@ export class GmailService {
         query:
           'in:inbox is:unread newer_than:3d -category:promotions -category:social -category:forums',
       },
-      'google'
+      this.accessToken!
     );
     return response as GmailListResponse;
   }
