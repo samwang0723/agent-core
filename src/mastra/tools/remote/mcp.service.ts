@@ -224,12 +224,8 @@ export class McpClient {
       throw new Error('MCP session not initialized');
     }
 
-    const googleAuthToken = (
-      parameters.runtimeContext as RuntimeContext<UserRuntimeContext>
-    )?.get('googleAuthToken');
-
     // Check if authentication is required
-    const needsAuth =
+    const authPlatform =
       this.config.requiresAuth ||
       this.availableTools.find(t => t.name === name)?.requiresAuth;
 
@@ -240,12 +236,17 @@ export class McpClient {
     };
 
     // Add authorization header if needed
-    if (needsAuth) {
+    if (authPlatform) {
+      const authTokenKey =
+        `${authPlatform}AuthToken` as keyof UserRuntimeContext;
+      const specificAuthToken = (
+        parameters.runtimeContext as RuntimeContext<UserRuntimeContext>
+      )?.get(authTokenKey);
       logger.debug(
-        `[${name}] Tool: needsAuth: ${needsAuth}, googleAuthToken: ${googleAuthToken}, authToken: ${authToken}`
+        `[${name}] Tool: needsAuth: ${authPlatform}, googleAuthToken: ${specificAuthToken}, authToken: ${authToken}`
       );
-      const accessToken = authToken || googleAuthToken;
-      if (needsAuth === 'google' && accessToken) {
+      const accessToken = authToken || specificAuthToken;
+      if (accessToken) {
         headers['Authorization'] = `Bearer ${accessToken}`;
         logger.debug(
           `[${name}] Tool: Authorization header: ${headers['Authorization']}`
