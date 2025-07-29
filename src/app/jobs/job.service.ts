@@ -233,7 +233,7 @@ async function importCalendar(token: string, userId: string): Promise<string> {
 export const syncGmailCronTask = schedules.task({
   id: 'sync-gmail-cron',
   maxDuration: 1800,
-  cron: '*/20 * * * *',
+  cron: '*/60 * * * *',
   run: async (payload, { ctx }) => {
     logger.info('Starting scheduled Gmail sync for all users...', { ctx });
 
@@ -283,7 +283,7 @@ export const syncGmailCronTask = schedules.task({
 
 export const syncCalendarCronTask = schedules.task({
   id: 'sync-calendar-cron',
-  cron: '*/10 * * * *',
+  cron: '*/30 * * * *',
   maxDuration: 1800,
   run: async (payload, { ctx }) => {
     logger.info('Starting scheduled Calendar sync for all users...', { ctx });
