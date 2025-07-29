@@ -1,6 +1,4 @@
-import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import logger from '../utils/logger';
 import { LanguageModelV1 } from 'ai';
 import { MODEL_CONFIGS } from './model.dto';
@@ -39,8 +37,9 @@ export const createModelByKey = (
   try {
     switch (config.provider) {
       case 'anthropic': {
-        const anthropic = createAnthropic({
+        const anthropic = createOpenAI({
           apiKey: config.apiKey,
+          baseURL: config.baseURL,
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const model = anthropic(config.modelName as any);
@@ -52,7 +51,7 @@ export const createModelByKey = (
       case 'openai': {
         const openai = createOpenAI({
           apiKey: config.apiKey,
-          compatibility: 'strict',
+          baseURL: config.baseURL,
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const model = openai(config.modelName as any);
@@ -62,11 +61,12 @@ export const createModelByKey = (
         return model;
       }
       case 'google': {
-        const google = createGoogleGenerativeAI({
+        const google = createOpenAI({
           apiKey: config.apiKey,
+          baseURL: config.baseURL,
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const model = google(`models/${config.modelName}` as any);
+        const model = google(config.modelName as any);
         logger.info(
           `✅ Google model models/${config.modelName} initialized successfully for key ${modelKey}`
         );
@@ -86,30 +86,6 @@ export const createModelByKey = (
     );
     throw error;
   }
-};
-
-// Get the current model from environment variable or default
-const getCurrentModelKey = (): string => {
-  return process.env.LLM_MODEL || 'claude-3-5-sonnet';
-};
-
-// Create and configure the model instance
-export const createModel = () => {
-  const modelKey = getCurrentModelKey();
-  return createModelByKey(modelKey);
-};
-
-// Get current model information for logging/debugging
-export const getCurrentModelInfo = () => {
-  const modelKey = getCurrentModelKey();
-  const config = MODEL_CONFIGS[modelKey];
-
-  return {
-    key: modelKey,
-    provider: config?.provider,
-    modelName: config?.modelName,
-    isConfigured: !!config?.apiKey,
-  };
 };
 
 // List all available models

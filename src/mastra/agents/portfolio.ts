@@ -36,5 +36,6 @@ The result will be comprehensive portfolio information. Help users understand th
   tools: {
     getPortfolioTool: toolRegistry.getTool('get-portfolio-tool')!,
   },
-  memory: mastraMemoryService.getMemory(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  memory: mastraMemoryService.getMemory() as any,
 });

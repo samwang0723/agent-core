@@ -99,5 +99,6 @@ Before sending any response, verify that you have:
       'jira_get_all_projects'
     )!,
   },
-  memory: mastraMemoryService.getMemory(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  memory: mastraMemoryService.getMemory() as any,
 });

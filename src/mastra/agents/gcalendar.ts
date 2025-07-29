@@ -85,5 +85,6 @@ Remember: Always preserve the exact Google calendar search syntax and never modi
       'gcalendar_decline_event'
     )!,
   },
-  memory: mastraMemoryService.getMemory(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  memory: mastraMemoryService.getMemory() as any,
 });

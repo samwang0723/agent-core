@@ -80,5 +80,6 @@ Before sending any response, verify that you have:
       'check_availability'
     )!,
   },
-  memory: mastraMemoryService.getMemory(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  memory: mastraMemoryService.getMemory() as any,
 });

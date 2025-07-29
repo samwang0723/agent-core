@@ -96,5 +96,6 @@ Remember: You're not just an agent with tools - you're a conversational partner 
 - ALWAYS respond something instead of silence.
 `,
   model: createModelByKey('gemini-2.0-flash')!,
-  memory: mastraMemoryService.getMemory(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  memory: mastraMemoryService.getMemory() as any,
 });

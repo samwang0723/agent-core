@@ -73,5 +73,6 @@ Before sending any response, verify that you have:
     )!,
     getRedditComments: toolRegistry.getServerTool('reddit', 'reddit-comments')!,
   },
-  memory: mastraMemoryService.getMemory(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  memory: mastraMemoryService.getMemory() as any,
 });

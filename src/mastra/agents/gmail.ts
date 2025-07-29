@@ -220,5 +220,6 @@ Remember: Always preserve the exact Gmail search syntax and never modify the sea
       'gmail_get_details'
     )!,
   },
-  memory: mastraMemoryService.getMemory(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  memory: mastraMemoryService.getMemory() as any,
 });

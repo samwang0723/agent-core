@@ -52,5 +52,6 @@ Before sending any response, verify that you have:
       'brave_web_search'
     )!,
   },
-  memory: mastraMemoryService.getMemory(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  memory: mastraMemoryService.getMemory() as any,
 });

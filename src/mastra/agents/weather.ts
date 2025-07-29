@@ -19,5 +19,6 @@ The result will be the 15 days weather forecast for the city. Please also sugges
   tools: {
     getWeatherTool: toolRegistry.getTool('get-weather-tool')!,
   },
-  memory: mastraMemoryService.getMemory(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  memory: mastraMemoryService.getMemory() as any,
 });
