@@ -83,14 +83,15 @@ export class EventSubscriptionManager {
   public async initializeDefaultSubscription(
     userId: string
   ): Promise<EventSubscription> {
-    // Default to all event types enabled
+    // Default to all event types enabled for unified notification system
     const defaultEventTypes = [
       EventType.GMAIL_IMPORTANT_EMAIL,
       EventType.CALENDAR_UPCOMING_EVENT,
       EventType.CALENDAR_NEW_EVENT,
-      EventType.CALENDAR_EVENT_REMINDER,
       EventType.CALENDAR_CONFLICT_DETECTED,
-      EventType.CHAT_MESSAGE,
+      EventType.LOGIN_SUMMARY,
+      EventType.UNIFIED_PERIODIC_SUMMARY,
+      EventType.SYSTEM_NOTIFICATION,
     ];
 
     return this.createOrUpdateSubscription(userId, defaultEventTypes, true);

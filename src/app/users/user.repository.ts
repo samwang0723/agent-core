@@ -182,3 +182,31 @@ export const getActiveUsersWithGoogleIntegration = async (): Promise<
   );
   return result.rows;
 };
+
+export const getLastLoginTime = async (
+  userId: string
+): Promise<Date | null> => {
+  const result = await query<{ last_login_at: Date | null }>(
+    'SELECT last_login_at FROM users WHERE id = $1',
+    [userId]
+  );
+  return result.rows.length > 0 ? result.rows[0].last_login_at : null;
+};
+
+export const updateLastLoginTime = async (
+  userId: string,
+  loginTime: Date
+): Promise<void> => {
+  await query('UPDATE users SET last_login_at = $1 WHERE id = $2', [
+    loginTime,
+    userId,
+  ]);
+};
+
+export const getUserEmail = async (userId: string): Promise<string> => {
+  const result = await query<{ email: string }>(
+    'SELECT email FROM users WHERE id = $1',
+    [userId]
+  );
+  return result.rows.length > 0 ? result.rows[0].email : '';
+};

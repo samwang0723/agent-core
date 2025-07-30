@@ -24,7 +24,8 @@ import {
   storeTokenResponse,
   getTokenResponse,
 } from './user.service';
-import { importCalendarTask, importGmailTask } from '../jobs/job.service';
+import { loginSummaryService } from '../events/login-summary.service';
+import { featureFlags } from '../utils/feature-flags';
 
 type Env = {
   Variables: {
@@ -446,18 +447,6 @@ app.get('/google/callback', async c => {
 
     logger.info(`Session stored for user: ${userInfo.email}`);
 
-    // Start the Gmail import workflow
-    if (session.accessToken) {
-      await importGmailTask.trigger({
-        token: session.accessToken,
-        userId: user.id,
-      });
-      await importCalendarTask.trigger({
-        token: session.accessToken,
-        userId: user.id,
-      });
-    }
-
     // Redirect to a success page or the main app
     return c.redirect(
       `/?auth=success&token_type=bearer&session_id=${sessionId}`
@@ -774,17 +763,52 @@ app.post('/oauth/token', async c => {
     setImmediate(async () => {
       try {
         if (session.accessToken) {
-          await Promise.all([
-            importGmailTask.trigger({
-              token: session.accessToken,
+          // Generate login summary after a short delay
+          const isLoginSummaryEnabled = featureFlags.isLoginSummaryEnabled();
+          const isUnifiedNotificationsEnabled =
+            featureFlags.isUnifiedNotificationsEnabledForUser(session.id);
+
+          logger.info('OAuth login summary feature check', {
+            userId: session.id,
+            isLoginSummaryEnabled,
+            isUnifiedNotificationsEnabled,
+            willGenerateLoginSummary:
+              isLoginSummaryEnabled && isUnifiedNotificationsEnabled,
+          });
+
+          if (isLoginSummaryEnabled && isUnifiedNotificationsEnabled) {
+            logger.info('Scheduling OAuth login summary generation', {
               userId: session.id,
-            }),
-            importCalendarTask.trigger({
-              token: session.accessToken,
-              userId: session.id,
-            }),
-          ]);
-          logger.debug(`Background sync completed for user ${session.id}`);
+              delayMs: 5000,
+            });
+
+            setTimeout(async () => {
+              try {
+                logger.info('Starting OAuth login summary generation', {
+                  userId: session.id,
+                  locale: session.locale || 'en',
+                });
+
+                await loginSummaryService.generateLoginSummary(
+                  session.id,
+                  session.accessToken!,
+                  session.locale || 'en'
+                );
+
+                logger.info(
+                  'Successfully completed OAuth login summary generation',
+                  {
+                    userId: session.id,
+                  }
+                );
+              } catch (error) {
+                logger.error('Failed to generate OAuth login summary', {
+                  error: error instanceof Error ? error.message : String(error),
+                  userId: session.id,
+                });
+              }
+            }, 5000); // 5 second delay
+          }
         }
       } catch (syncError) {
         logger.error(

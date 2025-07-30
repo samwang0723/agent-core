@@ -127,29 +127,6 @@ app.get('/channel', requireAuth, async (c: AuthContext) => {
   }
 });
 
-// Manual event trigger for testing
-app.post('/test', requireAuth, async (c: AuthContext) => {
-  const userId = c.get('user').id;
-
-  try {
-    const { eventType, data } = await c.req.json();
-
-    if (!Object.values(EventType).includes(eventType)) {
-      return c.json({ error: 'Invalid event type' }, 400);
-    }
-
-    await pusherEventBroadcaster.broadcastToUser(userId, eventType, data);
-
-    return c.json({
-      message:
-        'Test event sent via Pusher and converted to chat message (if calendar event)',
-    });
-  } catch (error) {
-    logger.error(`Failed to send test event for user ${userId}`, { error });
-    return c.json({ error: 'Failed to send test event' }, 500);
-  }
-});
-
 // Send system notification to all users
 app.post('/broadcast', requireAuth, async c => {
   // Only allow certain users to broadcast (could add role check here)
@@ -169,40 +146,6 @@ app.post('/broadcast', requireAuth, async c => {
   } catch (error) {
     logger.error('Failed to broadcast system notification', { error });
     return c.json({ error: 'Failed to broadcast notification' }, 500);
-  }
-});
-
-// Test endpoint specifically for chat message events
-app.post('/test-chat', requireAuth, async (c: AuthContext) => {
-  const userId = c.get('user').id;
-
-  try {
-    const { message } = await c.req.json();
-
-    if (!message) {
-      return c.json({ error: 'Message is required' }, 400);
-    }
-
-    // Broadcast a chat message directly
-    await pusherEventBroadcaster.broadcastToUser(
-      userId,
-      EventType.CHAT_MESSAGE,
-      {
-        message,
-        isProactive: true,
-        triggerEventType: 'manual_test',
-        triggerEventId: `test-${Date.now()}`,
-      }
-    );
-
-    return c.json({
-      message: 'Test chat message sent successfully',
-    });
-  } catch (error) {
-    logger.error(`Failed to send test chat message for user ${userId}`, {
-      error,
-    });
-    return c.json({ error: 'Failed to send test chat message' }, 500);
   }
 });
 

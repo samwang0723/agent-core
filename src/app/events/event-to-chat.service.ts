@@ -1,11 +1,8 @@
 import {
   Event,
   EventType,
-  EventPriority,
-  EventSource,
-  CalendarNewEventEvent,
-  CalendarUpcomingEventEvent,
-  ChatMessageEvent,
+  LoginSummaryEvent,
+  UnifiedPeriodicSummaryEvent,
 } from './event.types';
 import { memoryPatterns } from '../../mastra/memory/memory.dto';
 import { mastraMemoryService } from '../../mastra/memory/memory.service';
@@ -27,7 +24,10 @@ export class EventToChatService {
   /**
    * Convert a calendar event into a chat message and broadcast it to the user
    */
-  public async convertEventToChat(event: Event): Promise<void> {
+  public async convertEventToChat(
+    event: Event,
+    locale: string = 'en'
+  ): Promise<void> {
     try {
       // Only process calendar events
       if (!this.isCalendarEvent(event)) {
@@ -41,7 +41,7 @@ export class EventToChatService {
       });
 
       // Generate AI message about the event
-      const chatMessage = await this.generateEventMessage(event);
+      const chatMessage = await this.generateEventMessage(event, locale);
 
       if (!chatMessage) {
         logger.warn('Failed to generate chat message for event', {
@@ -71,24 +71,24 @@ export class EventToChatService {
   }
 
   /**
-   * Check if the event is a calendar event that should be converted to chat
+   * Check if the event should be converted to chat (unified summaries only)
    */
   private isCalendarEvent(event: Event): boolean {
     return [
-      EventType.CALENDAR_NEW_EVENT,
-      EventType.CALENDAR_UPCOMING_EVENT,
-      EventType.CALENDAR_EVENT_REMINDER,
-      EventType.CALENDAR_CONFLICT_DETECTED,
-      EventType.CALENDAR_BATCH_SUMMARY,
+      EventType.LOGIN_SUMMARY,
+      EventType.UNIFIED_PERIODIC_SUMMARY,
     ].includes(event.type);
   }
 
   /**
    * Generate a contextual AI message about the calendar event
    */
-  private async generateEventMessage(event: Event): Promise<string | null> {
+  private async generateEventMessage(
+    event: Event,
+    locale: string
+  ): Promise<string | null> {
     try {
-      const prompt = this.createEventPrompt(event);
+      const prompt = this.createEventPrompt(event, locale);
 
       // Use the general agent to generate a natural conversational response
       const generalAgent = mastra.getAgent('generalAgent');
@@ -122,91 +122,49 @@ export class EventToChatService {
   }
 
   /**
-   * Create a prompt for the AI to generate a message about the calendar event
+   * Create a prompt for the AI to generate a message about the unified summary
    */
-  private createEventPrompt(event: Event): string {
-    const baseContext = `You are Friday, the user's AI assistant. A calendar event was just detected. Respond naturally and conversationally as if you're proactively helping manage their schedule, pay attention to the datetime. Keep it brief and helpful.`;
-
+  private createEventPrompt(event: Event, locale: string): string {
     switch (event.type) {
-      case EventType.CALENDAR_NEW_EVENT:
-        return this.createNewEventPrompt(
-          event as CalendarNewEventEvent,
-          baseContext
+      case EventType.LOGIN_SUMMARY:
+        return this.createLoginSummaryPrompt(
+          event as LoginSummaryEvent,
+          locale
         );
 
-      case EventType.CALENDAR_UPCOMING_EVENT:
-        return this.createUpcomingEventPrompt(
-          event as CalendarUpcomingEventEvent,
-          baseContext
+      case EventType.UNIFIED_PERIODIC_SUMMARY:
+        return this.createPeriodicSummaryPrompt(
+          event as UnifiedPeriodicSummaryEvent,
+          locale
         );
 
       default:
-        return `${baseContext}\n\nA calendar event was detected: ${JSON.stringify(event.data)}. Mention this to the user conversationally.`;
+        return `You are Friday, the user's AI assistant. Here's a system update: ${JSON.stringify(event.data)}. Present this to the user in a friendly way. ALWAYS respond with Language locale ${locale}.`;
     }
   }
 
   /**
-   * Create prompt for new calendar events
+   * Create prompt for login summary
    */
-  private createNewEventPrompt(
-    event: CalendarNewEventEvent,
-    baseContext: string
+  private createLoginSummaryPrompt(
+    event: LoginSummaryEvent,
+    locale: string
   ): string {
-    const { title, startTime, location } = event.data;
-    const startDate = new Date(startTime).toLocaleDateString();
-    const startTimeStr = new Date(startTime).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    let eventDetails = `"${title}" on ${startDate} at ${startTimeStr}`;
-    if (location) {
-      eventDetails += ` at ${location}`;
-    }
-
-    return `${baseContext}
-
-A new event was just added to the calendar: ${eventDetails}.
-
-Respond naturally as their assistant, acknowledging the new event and offering brief, helpful assistance if appropriate (like asking if they need preparation help or noting any relevant details), pay attention to the datetime. Keep it conversational and concise.`;
+    return `You are Friday, the user's AI assistant. The user just logged in and here's their personalized summary: ${event.data.summary}. Present this warmly as their welcome back message. ALWAYS respond with Language locale ${locale}.`;
   }
 
   /**
-   * Create prompt for upcoming event reminders
+   * Create prompt for periodic summary
    */
-  private createUpcomingEventPrompt(
-    event: CalendarUpcomingEventEvent,
-    baseContext: string
+  private createPeriodicSummaryPrompt(
+    event: UnifiedPeriodicSummaryEvent,
+    locale: string
   ): string {
-    const { title, startTime, location, timeUntilStart, reminder } = event.data;
-    const startTimeStr = new Date(startTime).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    let urgency = '';
-    if (reminder === 'starting') {
-      urgency = 'starting very soon';
-    } else if (timeUntilStart <= 30) {
-      urgency = `starting in ${timeUntilStart} minutes`;
-    } else {
-      urgency = `coming up in ${timeUntilStart} minutes`;
-    }
-
-    let eventDetails = `"${title}" ${urgency} at ${startTimeStr}`;
-    if (location) {
-      eventDetails += ` at ${location}`;
-    }
-
-    return `${baseContext}
-
-Upcoming event reminder: ${eventDetails}.
-
-Respond naturally as their assistant with a friendly heads-up about the upcoming event, pay attention to the datetime. Keep it brief and helpful - maybe mention preparation if relevant. Be conversational.`;
+    return `You are Friday, the user's AI assistant. Here's a periodic update for the user: ${event.data.summary}. Present this as a helpful status update. ALWAYS respond with Language locale ${locale}.`;
   }
 
   /**
-   * Broadcast the generated chat message as a Pusher event
+   * Broadcast the generated chat message directly to the user
    */
   private async broadcastChatMessage(
     userId: string,
@@ -217,26 +175,10 @@ Respond naturally as their assistant with a friendly heads-up about the upcoming
     const { pusherEventBroadcaster } = await import('./pusher.service');
 
     try {
-      // Create a chat message event
-      const chatMessageEvent: ChatMessageEvent = {
-        id: `chat-message-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        userId,
-        type: EventType.CHAT_MESSAGE,
-        timestamp: new Date(),
-        priority: EventPriority.MEDIUM,
-        source: EventSource.SYSTEM,
-        data: {
-          message,
-          isProactive: true,
-          triggerEventType: triggerEvent.type,
-          triggerEventId: triggerEvent.id,
-        },
-      };
+      // Broadcast the summary directly as a chat message
+      await pusherEventBroadcaster.broadcastChatMessage(userId, message);
 
-      // Broadcast the chat message event
-      await pusherEventBroadcaster.broadcastEvent(chatMessageEvent);
-
-      logger.debug('Broadcasted chat message event', {
+      logger.debug('Broadcasted summary chat message', {
         userId,
         messageLength: message.length,
         triggerEventId: triggerEvent.id,

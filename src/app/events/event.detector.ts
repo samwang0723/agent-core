@@ -43,7 +43,7 @@ export class EventDetector {
 
   private static readonly VIP_DOMAINS = [
     'gmail.com',
-    'bank.com',
+    'bank',
     'playstation.com',
     'google.com',
     'microsoft.com',
@@ -55,6 +55,18 @@ export class EventDetector {
     'youtube.com',
     'github.com',
     'crypto.com',
+    'binance.com',
+    'coinbase.com',
+    'ubereats.com',
+    'doordash.com',
+    'grubhub.com',
+    'postmates.com',
+    'instacart.com',
+    'uber.com',
+    'foodpanda.com',
+    'openai.com',
+    'anthropic.com',
+    'linkedin.com',
   ];
 
   private static readonly CALENDAR_IMPORTANT_KEYWORDS = [
@@ -116,8 +128,16 @@ export class EventDetector {
     userId: string,
     newEvents: (CalendarEvent & { id: string })[],
     existingEventIds: Set<string>
-  ): (CalendarUpcomingEventEvent | CalendarNewEventEvent | CalendarConflictEvent)[] {
-    const events: (CalendarUpcomingEventEvent | CalendarNewEventEvent | CalendarConflictEvent)[] = [];
+  ): (
+    | CalendarUpcomingEventEvent
+    | CalendarNewEventEvent
+    | CalendarConflictEvent
+  )[] {
+    const events: (
+      | CalendarUpcomingEventEvent
+      | CalendarNewEventEvent
+      | CalendarConflictEvent
+    )[] = [];
     const now = new Date();
 
     for (const event of newEvents) {
@@ -206,7 +226,9 @@ export class EventDetector {
 
       if (conflictAnalysis.hasConflicts) {
         events.push(...conflictAnalysis.conflicts);
-        ConflictDetectionService.logConflictDetection(conflictAnalysis.conflicts);
+        ConflictDetectionService.logConflictDetection(
+          conflictAnalysis.conflicts
+        );
       }
     }
 
