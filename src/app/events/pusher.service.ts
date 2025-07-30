@@ -247,7 +247,7 @@ export class PusherEventBroadcaster {
 
       await this.pusher.trigger(channelName, 'chat_message', chatData);
 
-      logger.info(`Broadcasted chat message to user ${userId}`, {
+      logger.debug(`Broadcasted chat message to user ${userId}`, {
         userId,
         message,
         messageLength: message.length,

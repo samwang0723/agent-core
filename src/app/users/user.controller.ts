@@ -708,7 +708,7 @@ app.post('/oauth/token', async c => {
     }
 
     // Check if we already have a cached response for this code (handles duplicate requests)
-    console.log('POST /oauth/token - processing code:', code);
+    console.debug('POST /oauth/token - processing code:', code);
     const cachedResponse = await getTokenResponse(code);
     if (cachedResponse) {
       console.log('Returning cached token response for duplicate request');

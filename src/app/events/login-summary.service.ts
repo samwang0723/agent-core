@@ -78,7 +78,7 @@ export class LoginSummaryService {
 
       const calendarEvents = (calendarResponse.events ||
         []) as GoogleCalendarEvent[];
-      logger.info('emailResponse', { emailResponse });
+      logger.debug('emailResponse', { emailResponse });
       const emails = (emailResponse.messages || []) as GoogleEmailMessage[];
 
       // Filter data since 8 hours ago
@@ -153,7 +153,7 @@ export class LoginSummaryService {
         }));
       }
 
-      logger.info(`Emails for login summary`, {
+      logger.debug(`Emails for login summary`, {
         userId,
         strictImportantEmails: importantEmails.length,
         emailsToInclude: emailsToInclude.length,
@@ -327,7 +327,7 @@ export class LoginSummaryService {
         detailedData
       );
 
-      logger.info(`Login summary prompt`, {
+      logger.debug(`Login summary prompt`, {
         prompt,
       });
 
