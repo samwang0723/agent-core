@@ -20,7 +20,9 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 app.use(
   '/api/*',
   cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: process.env.CORS_ORIGIN 
+      ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+      : '*',
     allowHeaders: [
       'Origin',
       'X-Requested-With',
