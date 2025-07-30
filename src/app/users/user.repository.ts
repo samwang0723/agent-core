@@ -210,3 +210,11 @@ export const getUserEmail = async (userId: string): Promise<string> => {
   );
   return result.rows.length > 0 ? result.rows[0].email : '';
 };
+
+export const getUserTimezone = async (userId: string): Promise<string> => {
+  const result = await query<{ timezone: string }>(
+    'SELECT timezone FROM sessions WHERE user_id = $1',
+    [userId]
+  );
+  return result.rows.length > 0 ? result.rows[0].timezone : 'UTC';
+};

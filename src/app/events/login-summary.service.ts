@@ -12,6 +12,7 @@ import { mastraMemoryService } from '../../mastra/memory/memory.service';
 import {
   getLastLoginTime,
   getUserEmail,
+  getUserTimezone,
   updateLastLoginTime,
 } from '../users/user.repository';
 import { CalendarService } from '../calendar';
@@ -53,6 +54,7 @@ export class LoginSummaryService {
     });
 
     const userEmail = await getUserEmail(userId);
+    const timezone = await getUserTimezone(userId);
 
     try {
       // Get last login time
@@ -218,12 +220,18 @@ export class LoginSummaryService {
       }
 
       // Generate AI summary with detailed data
-      const summary = await this.generateAISummary(stats, cutoffTime, locale, {
-        newCalendarEvents,
-        upcomingEvents,
-        emailsToInclude,
-        conflicts,
-      });
+      const summary = await this.generateAISummary(
+        stats,
+        cutoffTime,
+        locale,
+        timezone,
+        {
+          newCalendarEvents,
+          upcomingEvents,
+          emailsToInclude,
+          conflicts,
+        }
+      );
 
       if (summary) {
         // Create login summary event for storage/analytics
@@ -295,6 +303,7 @@ export class LoginSummaryService {
     },
     since: Date,
     locale: string,
+    timezone: string,
     detailedData?: {
       newCalendarEvents: GoogleCalendarEvent[];
       upcomingEvents: GoogleCalendarEvent[];
@@ -314,6 +323,7 @@ export class LoginSummaryService {
         stats,
         timePeriod,
         locale,
+        timezone,
         detailedData
       );
 
@@ -349,6 +359,7 @@ export class LoginSummaryService {
     },
     timePeriod: string,
     locale: string,
+    timezone: string,
     detailedData?: {
       newCalendarEvents: GoogleCalendarEvent[];
       upcomingEvents: GoogleCalendarEvent[];
@@ -356,7 +367,7 @@ export class LoginSummaryService {
       conflicts: CalendarConflictEvent[];
     }
   ): string {
-    const baseContext = `You are Friday, the user's AI assistant. Welcome the user and provide a concise summary of what's happened since their last login. Be warm, conversational, and actionable. ALWAYS respond with Language locale ${locale}.`;
+    const baseContext = `You are Friday, the user's AI assistant. Welcome the user and provide a concise summary of what's happened since their last login. Be warm, conversational, and actionable. ALWAYS respond with Language locale ${locale}, user timezone ${timezone}, current date and time is ${new Date().toLocaleString()}.`;
 
     let updatesDetail = `\nUpdates ${timePeriod}:\n`;
 

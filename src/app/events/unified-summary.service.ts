@@ -19,7 +19,7 @@ import {
   GoogleEmailMessage,
 } from '../types/google-api.types';
 import { CalendarConflictEvent } from './event.types';
-import { getUserEmail } from '../users/user.repository';
+import { getUserEmail, getUserTimezone } from '../users/user.repository';
 
 export class UnifiedSummaryService {
   private static instance: UnifiedSummaryService;
@@ -50,6 +50,7 @@ export class UnifiedSummaryService {
     });
 
     const userEmail = await getUserEmail(userId);
+    const timezone = await getUserTimezone(userId);
 
     try {
       // Use a default lookback of 30 minutes for periodic summaries
@@ -189,6 +190,7 @@ export class UnifiedSummaryService {
         lastSummaryAt,
         now,
         locale,
+        timezone,
         {
           newCalendarEvents,
           upcomingEvents,
@@ -275,6 +277,7 @@ export class UnifiedSummaryService {
     since: Date,
     now: Date,
     locale: string,
+    timezone: string,
     detailedData?: {
       newCalendarEvents: GoogleCalendarEvent[];
       upcomingEvents: GoogleCalendarEvent[];
@@ -294,6 +297,7 @@ export class UnifiedSummaryService {
         stats,
         timePeriod,
         locale,
+        timezone,
         detailedData
       );
 
@@ -325,6 +329,7 @@ export class UnifiedSummaryService {
     },
     timePeriod: string,
     locale: string,
+    timezone: string,
     detailedData?: {
       newCalendarEvents: GoogleCalendarEvent[];
       upcomingEvents: GoogleCalendarEvent[];
@@ -332,7 +337,7 @@ export class UnifiedSummaryService {
       conflicts: CalendarConflictEvent[];
     }
   ): string {
-    const baseContext = `You are Friday, the user's AI assistant. Provide a concise periodic update of what's happened recently. Be helpful, conversational, and actionable. ALWAYS respond with Language locale ${locale}.`;
+    const baseContext = `You are Friday, the user's AI assistant. Provide a concise periodic update of what's happened recently. Be helpful, conversational, and actionable. ALWAYS respond with Language locale ${locale}, user timezone ${timezone}, current date and time is ${new Date().toLocaleString()}.`;
 
     let updatesDetail = `\nUpdates ${timePeriod}:\n`;
 
