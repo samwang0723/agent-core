@@ -9,16 +9,18 @@ export interface BaseEvent {
 }
 
 export enum EventType {
+  // Raw events for frontend notifications (no chat conversion)
   GMAIL_IMPORTANT_EMAIL = 'gmail_important_email',
   CALENDAR_UPCOMING_EVENT = 'calendar_upcoming_event',
   CALENDAR_NEW_EVENT = 'calendar_new_event',
-  CALENDAR_EVENT_REMINDER = 'calendar_event_reminder',
   CALENDAR_CONFLICT_DETECTED = 'calendar_conflict_detected',
-  CALENDAR_CONFLICT_BATCH_SUMMARY = 'calendar_conflict_batch_summary',
-  CALENDAR_BATCH_SUMMARY = 'calendar_batch_summary',
-  EMAIL_BATCH_SUMMARY = 'email_batch_summary',
+
+  // Unified summaries (with chat conversion)
+  LOGIN_SUMMARY = 'login_summary',
+  UNIFIED_PERIODIC_SUMMARY = 'unified_periodic_summary',
+
+  // System events
   SYSTEM_NOTIFICATION = 'system_notification',
-  CHAT_MESSAGE = 'chat_message',
 }
 
 export enum EventPriority {
@@ -76,65 +78,46 @@ export interface CalendarNewEventEvent extends BaseEvent {
   };
 }
 
-export interface SystemNotificationEvent extends BaseEvent {
-  type: EventType.SYSTEM_NOTIFICATION;
+// Raw events for frontend (no chat conversion)
+export interface GmailImportantEmailEvent extends BaseEvent {
+  type: EventType.GMAIL_IMPORTANT_EMAIL;
   data: {
+    emailId: string;
+    subject: string;
+    fromAddress: string;
+    snippet: string;
+    importance: 'high' | 'urgent';
+    receivedTime: Date;
+  };
+}
+
+export interface CalendarUpcomingEventEvent extends BaseEvent {
+  type: EventType.CALENDAR_UPCOMING_EVENT;
+  data: {
+    eventId: string;
     title: string;
-    message: string;
-    actionUrl?: string;
+    startTime: Date;
+    endTime: Date;
+    location?: string;
+    timeUntilStart: number; // minutes
+    reminder: 'soon' | 'starting' | 'overdue';
   };
 }
 
-export interface ChatMessageEvent extends BaseEvent {
-  type: EventType.CHAT_MESSAGE;
+export interface CalendarNewEventEvent extends BaseEvent {
+  type: EventType.CALENDAR_NEW_EVENT;
   data: {
-    message: string;
-    isProactive: boolean;
-    triggerEventType?: EventType;
-    triggerEventId?: string;
-    isBatchSummary?: boolean;
-    batchType?: 'calendar' | 'email' | 'conflict';
-    batchId?: string;
-  };
-}
-
-export interface CalendarBatchSummaryEvent extends BaseEvent {
-  type: EventType.CALENDAR_BATCH_SUMMARY;
-  data: {
-    batchId: string;
-    newEventsCount: number;
-    upcomingEventsCount: number;
-    summary: string;
-  };
-}
-
-export interface CalendarConflictBatchSummaryEvent extends BaseEvent {
-  type: EventType.CALENDAR_CONFLICT_BATCH_SUMMARY;
-  data: {
-    batchId: string;
-    conflictCount: number;
-    severityBreakdown: {
-      minor: number;
-      moderate: number;
-      major: number;
-    };
-    conflictTypes: {
-      exact_overlap: number;
-      partial_overlap: number;
-      back_to_back: number;
-    };
-    conflicts: CalendarConflictEvent[];
-    summary: string;
-  };
-}
-
-export interface EmailBatchSummaryEvent extends BaseEvent {
-  type: EventType.EMAIL_BATCH_SUMMARY;
-  data: {
-    batchId: string;
-    emailCount: number;
-    urgentCount: number;
-    summary: string;
+    eventId: string;
+    title: string;
+    startTime: Date;
+    endTime: Date;
+    location?: string;
+    description?: string;
+    attendees?: {
+      email: string;
+      responseStatus: string;
+      [key: string]: unknown;
+    }[];
   };
 }
 
@@ -161,16 +144,58 @@ export interface CalendarConflictEvent extends BaseEvent {
   };
 }
 
+// Unified summary events (with chat conversion)
+export interface LoginSummaryEvent extends BaseEvent {
+  type: EventType.LOGIN_SUMMARY;
+  data: {
+    summaryId: string;
+    lastLoginAt?: Date;
+    summary: string;
+    stats: {
+      newCalendarEvents: number;
+      upcomingEvents: number;
+      importantEmails: number;
+      conflicts: number;
+    };
+    periodCovered: string;
+  };
+}
+
+export interface UnifiedPeriodicSummaryEvent extends BaseEvent {
+  type: EventType.UNIFIED_PERIODIC_SUMMARY;
+  data: {
+    summaryId: string;
+    lastSummaryAt: Date;
+    summary: string;
+    stats: {
+      newCalendarEvents: number;
+      upcomingEvents: number;
+      importantEmails: number;
+      conflicts: number;
+    };
+    changesSinceLastSummary: boolean;
+  };
+}
+
+// System events
+export interface SystemNotificationEvent extends BaseEvent {
+  type: EventType.SYSTEM_NOTIFICATION;
+  data: {
+    title: string;
+    message: string;
+    actionUrl?: string;
+  };
+}
+
+// Clean union type with only necessary events
 export type Event =
   | GmailImportantEmailEvent
   | CalendarUpcomingEventEvent
   | CalendarNewEventEvent
   | CalendarConflictEvent
-  | CalendarConflictBatchSummaryEvent
-  | CalendarBatchSummaryEvent
-  | EmailBatchSummaryEvent
-  | SystemNotificationEvent
-  | ChatMessageEvent;
+  | LoginSummaryEvent
+  | UnifiedPeriodicSummaryEvent
+  | SystemNotificationEvent;
 
 export interface EventSubscription {
   userId: string;

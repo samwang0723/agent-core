@@ -120,18 +120,6 @@ export class PusherEventBroadcaster {
         }
       );
 
-      // Convert calendar events to chat messages (non-blocking)
-      // Skip conversion for batch summary events and chat messages as they're already processed
-      if (this.shouldConvertToChat(event)) {
-        eventToChatService.convertEventToChat(event).catch(error => {
-          logger.error('Background chat conversion failed', {
-            error: error instanceof Error ? error.message : String(error),
-            eventId: event.id,
-            userId: event.userId,
-          });
-        });
-      }
-
       return {
         success: true,
         subscriberCount: 1, // Pusher handles the actual subscriber count
@@ -242,6 +230,37 @@ export class PusherEventBroadcaster {
     }
   }
 
+  /**
+   * Broadcast a chat message directly to a user
+   */
+  public async broadcastChatMessage(
+    userId: string,
+    message: string
+  ): Promise<void> {
+    try {
+      const channelName = `user-${userId}`;
+      const chatData = {
+        message,
+        timestamp: new Date().toISOString(),
+        isProactive: true,
+      };
+
+      await this.pusher.trigger(channelName, 'chat_message', chatData);
+
+      logger.debug(`Broadcasted chat message to user ${userId}`, {
+        userId,
+        message,
+        messageLength: message.length,
+      });
+    } catch (error) {
+      logger.error(`Failed to broadcast chat message to user ${userId}`, {
+        error: error instanceof Error ? error.message : String(error),
+        userId,
+      });
+      throw error;
+    }
+  }
+
   public async cleanup(): Promise<void> {
     // Clean up old events from storage
     await this.eventStorage.cleanup();
@@ -256,18 +275,26 @@ export class PusherEventBroadcaster {
   }
 
   /**
-   * Determine if an event should be converted to chat message
-   * Skip batch summary events and chat messages as they're already processed
+   * Convert event to chat with user's locale
    */
-  private shouldConvertToChat(event: Event): boolean {
-    const skipConversionTypes = [
-      EventType.CALENDAR_BATCH_SUMMARY,
-      EventType.EMAIL_BATCH_SUMMARY,
-      EventType.CHAT_MESSAGE,
-      EventType.SYSTEM_NOTIFICATION,
-    ];
+  private async convertEventToChatWithLocale(event: Event): Promise<void> {
+    try {
+      // Get user's session to determine locale
+      const { getSessionByUserId } = await import('../users/user.repository');
+      const session = await getSessionByUserId(event.userId);
+      const locale = session?.locale || 'en';
 
-    return !skipConversionTypes.includes(event.type);
+      // Convert event to chat with proper locale
+      await eventToChatService.convertEventToChat(event, locale);
+    } catch (error) {
+      logger.error('Failed to get user locale for chat conversion', {
+        error: error instanceof Error ? error.message : String(error),
+        eventId: event.id,
+        userId: event.userId,
+      });
+      // Fallback to default locale
+      await eventToChatService.convertEventToChat(event, 'en');
+    }
   }
 }
 

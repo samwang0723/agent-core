@@ -28,6 +28,7 @@ export class ConflictDetectionService {
 
   public static analyzeEventConflicts(
     userId: string,
+    userEmail: string,
     events: (CalendarEvent & { id: string })[],
     options: ConflictDetectionOptions = {}
   ): ConflictAnalysis {
@@ -35,14 +36,19 @@ export class ConflictDetectionService {
     const conflicts: CalendarConflictEvent[] = [];
 
     // Filter out events that should not trigger conflicts
-    const filteredEvents = events.filter(event => this.shouldIncludeInConflictDetection(event));
-    
+    const filteredEvents = events.filter(event =>
+      this.shouldIncludeInConflictDetection(event, userEmail)
+    );
+
     if (filteredEvents.length < events.length) {
-      logger.debug(`Filtered out ${events.length - filteredEvents.length} events from conflict detection (whole day/OOO events)`, {
-        originalCount: events.length,
-        filteredCount: filteredEvents.length,
-        userId,
-      });
+      logger.debug(
+        `Filtered out ${events.length - filteredEvents.length} events from conflict detection (whole day/OOO events)`,
+        {
+          originalCount: events.length,
+          filteredCount: filteredEvents.length,
+          userId,
+        }
+      );
     }
 
     // Sort events by start time for efficient processing
@@ -314,9 +320,10 @@ export class ConflictDetectionService {
   ) {
     const suggestions = [];
     const gapMinutes = Math.abs(timeBetween);
-    const gapDescription = gapMinutes === 0 
-      ? 'events are back-to-back with no gap' 
-      : `only ${Math.round(gapMinutes)} minute${gapMinutes === 1 ? '' : 's'} between events`;
+    const gapDescription =
+      gapMinutes === 0
+        ? 'events are back-to-back with no gap'
+        : `only ${Math.round(gapMinutes)} minute${gapMinutes === 1 ? '' : 's'} between events`;
 
     if (
       event1.location !== event2.location &&
@@ -336,9 +343,10 @@ export class ConflictDetectionService {
 
     suggestions.push({
       action: 'accept_conflict' as const,
-      description: gapMinutes === 0 
-        ? 'Accept the back-to-back scheduling if no transition time is needed'
-        : `Accept the tight scheduling (${Math.round(gapMinutes)} minute${gapMinutes === 1 ? '' : 's'} gap)`,
+      description:
+        gapMinutes === 0
+          ? 'Accept the back-to-back scheduling if no transition time is needed'
+          : `Accept the tight scheduling (${Math.round(gapMinutes)} minute${gapMinutes === 1 ? '' : 's'} gap)`,
     });
 
     return suggestions;
@@ -348,7 +356,10 @@ export class ConflictDetectionService {
    * Determine if an event should be included in conflict detection
    * Excludes whole day events and Out of Office/Annual Leave events
    */
-  private static shouldIncludeInConflictDetection(event: CalendarEvent & { id: string }): boolean {
+  private static shouldIncludeInConflictDetection(
+    event: CalendarEvent & { id: string },
+    userEmail: string
+  ): boolean {
     // Skip whole day events - these are usually informational (holidays, etc.)
     if (this.isWholeDayEvent(event)) {
       return false;
@@ -356,6 +367,21 @@ export class ConflictDetectionService {
 
     // Skip Out of Office and Annual Leave events
     if (this.isOutOfOfficeEvent(event)) {
+      return false;
+    }
+
+    // if current user has declined/rejected the event, skip
+    if (event.attendees) {
+      const userAttendee = event.attendees.find(
+        attendee => attendee.email === userEmail
+      );
+      if (userAttendee && userAttendee.responseStatus === 'declined') {
+        return false;
+      }
+    }
+
+    // if event is in the past, skip
+    if (event.startTime < new Date()) {
       return false;
     }
 
@@ -369,7 +395,7 @@ export class ConflictDetectionService {
   private static isWholeDayEvent(event: CalendarEvent): boolean {
     const duration = event.endTime.getTime() - event.startTime.getTime();
     const hours = duration / (1000 * 60 * 60);
-    
+
     // Consider events 20+ hours as whole day events
     // This accounts for timezone differences and slightly imprecise whole day events
     return hours >= 20;
@@ -381,7 +407,7 @@ export class ConflictDetectionService {
   private static isOutOfOfficeEvent(event: CalendarEvent): boolean {
     const title = (event.title || '').toLowerCase();
     const description = (event.description || '').toLowerCase();
-    
+
     const oooKeywords = [
       'out of office',
       'ooo',
@@ -410,8 +436,8 @@ export class ConflictDetectionService {
     ];
 
     // Check both title and description for OOO indicators
-    return oooKeywords.some(keyword => 
-      title.includes(keyword) || description.includes(keyword)
+    return oooKeywords.some(
+      keyword => title.includes(keyword) || description.includes(keyword)
     );
   }
 

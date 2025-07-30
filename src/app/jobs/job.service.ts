@@ -8,8 +8,14 @@ import {
   getSessionByUserId,
 } from '../users/user.repository';
 import { EventDetector } from '../events/event.detector';
-import { eventBatchService } from '../events/event-batch.service';
 import { EventType } from '../events/event.types';
+import { unifiedSummaryService } from '../events/unified-summary.service';
+import { pusherEventBroadcaster } from '../events/pusher.service';
+import { featureFlags } from '../utils/feature-flags';
+import {
+  GoogleCalendarEvent,
+  GoogleEmailMessage,
+} from '../types/google-api.types';
 
 export const importGmailTask = task({
   id: 'import-gmail',
@@ -62,30 +68,10 @@ async function importGmail(token: string, userId: string): Promise<string> {
         `Successfully created embeddings for ${insertedEmails.length} emails.`
       );
 
-      // Detect and process important email events in batch
-      try {
-        const importantEmailEvents =
-          EventDetector.detectImportantEmails(insertedEmails);
-
-        if (importantEmailEvents.length > 0) {
-          // Process emails as a batch for summary
-          const session = await getSessionByUserId(userId);
-          await eventBatchService.processEmailEventBatch(
-            userId,
-            session?.locale || 'en',
-            importantEmailEvents
-          );
-
-          logger.info(
-            `Processed ${importantEmailEvents.length} important email events as batch for user ${userId}`
-          );
-        }
-      } catch (error) {
-        logger.error('Error detecting/processing email events batch', {
-          error: error instanceof Error ? error.message : String(error),
-          userId,
-        });
-      }
+      // Note: Email events are now handled by unified summary system
+      logger.info(
+        `Successfully imported ${insertedEmails.length} emails for user ${userId}`
+      );
     } else {
       logger.info('No new emails to process in the background.');
     }
@@ -126,12 +112,7 @@ async function importCalendar(token: string, userId: string): Promise<string> {
     const calendarService = new CalendarService();
     await calendarService.initialize(token);
 
-    // Get existing calendar event IDs to detect new events
-    const { getExistingCalendarEventIds } = await import(
-      '../calendar/calendar.repository'
-    );
-    const existingEventIds = await getExistingCalendarEventIds(userId);
-    const session = await getSessionByUserId(userId);
+    // Note: Event detection now handled by unified summary system
 
     const eventResponse = await calendarService.getCalendarEvents();
     const events = eventResponse.events || [];
@@ -163,57 +144,10 @@ async function importCalendar(token: string, userId: string): Promise<string> {
         `Successfully created embeddings for ${insertedEvents.length} events.`
       );
 
-      // Detect and process calendar events in batch
-      try {
-        const calendarEvents = EventDetector.detectCalendarEvents(
-          userId,
-          insertedEvents,
-          existingEventIds
-        );
-
-        if (calendarEvents.length > 0) {
-          // Separate conflict events from regular calendar events
-          const conflictEvents = calendarEvents.filter(
-            e => e.type === EventType.CALENDAR_CONFLICT_DETECTED
-          );
-          const regularCalendarEvents = calendarEvents.filter(
-            e => e.type !== EventType.CALENDAR_CONFLICT_DETECTED
-          );
-
-          // Process regular calendar events as a batch for summary
-          if (regularCalendarEvents.length > 0) {
-            await eventBatchService.processCalendarEventBatch(
-              userId,
-              session?.locale || 'en',
-              regularCalendarEvents
-            );
-            logger.info(
-              `Processed ${regularCalendarEvents.length} calendar events as batch for user ${userId}`
-            );
-          }
-
-          // Process conflict events as a batch for summary
-          if (conflictEvents.length > 0) {
-            await eventBatchService.processConflictEventBatch(
-              userId,
-              session?.locale || 'en',
-              conflictEvents
-            );
-            logger.info(
-              `Processed ${conflictEvents.length} conflict events as batch for user ${userId}`
-            );
-          }
-        } else {
-          logger.info(
-            `No new calendar events to process in the background for user ${userId}`
-          );
-        }
-      } catch (error) {
-        logger.error('Error detecting/processing calendar events batch', {
-          error: error instanceof Error ? error.message : String(error),
-          userId,
-        });
-      }
+      // Note: Calendar events are now handled by unified summary system
+      logger.info(
+        `Successfully imported ${insertedEvents.length} calendar events for user ${userId}`
+      );
     } else {
       logger.info('No new calendar events to process in the background.');
     }
@@ -233,7 +167,7 @@ async function importCalendar(token: string, userId: string): Promise<string> {
 export const syncGmailCronTask = schedules.task({
   id: 'sync-gmail-cron',
   maxDuration: 1800,
-  cron: '*/20 * * * *',
+  cron: '*/60 * * * *',
   run: async (payload, { ctx }) => {
     logger.info('Starting scheduled Gmail sync for all users...', { ctx });
 
@@ -283,7 +217,7 @@ export const syncGmailCronTask = schedules.task({
 
 export const syncCalendarCronTask = schedules.task({
   id: 'sync-calendar-cron',
-  cron: '*/10 * * * *',
+  cron: '*/30 * * * *',
   maxDuration: 1800,
   run: async (payload, { ctx }) => {
     logger.info('Starting scheduled Calendar sync for all users...', { ctx });
@@ -331,3 +265,294 @@ export const syncCalendarCronTask = schedules.task({
     }
   },
 });
+
+export const unifiedSummaryCronTask = schedules.task({
+  id: 'unified-summary-cron',
+  cron: '*/10 * * * *', // Every 30 minutes
+  maxDuration: 1800,
+  run: async (payload, { ctx }) => {
+    // Check if feature is enabled
+    if (!featureFlags.isPeriodicSummaryEnabled()) {
+      logger.info('Unified summary cron job skipped - feature disabled', {
+        ctx,
+      });
+      return {
+        message: 'Feature disabled',
+        successCount: 0,
+        errorCount: 0,
+        totalUsers: 0,
+      };
+    }
+
+    logger.info('Starting unified summary generation for all users...', {
+      ctx,
+    });
+
+    try {
+      const activeUsers = await getActiveUsersWithGoogleIntegration();
+      logger.info(
+        `Found ${activeUsers.length} active users for unified summary`
+      );
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const user of activeUsers) {
+        try {
+          // Check if user is enabled for unified notifications
+          if (
+            !featureFlags.isUnifiedNotificationsEnabledForUser(user.user_id)
+          ) {
+            logger.debug(
+              `Skipping unified summary for user ${user.user_id} - not enabled`
+            );
+            continue;
+          }
+
+          const session = await getSessionByUserId(user.user_id);
+          await unifiedSummaryService.generatePeriodicSummary(
+            user.user_id,
+            user.access_token,
+            session?.locale || 'en'
+          );
+          successCount++;
+          logger.info(
+            `Successfully generated unified summary for user ${user.user_id}`
+          );
+        } catch (error) {
+          errorCount++;
+          logger.error(
+            `Failed to generate unified summary for user ${user.user_id}`,
+            {
+              error: error instanceof Error ? error.message : String(error),
+              userId: user.user_id,
+            }
+          );
+        }
+
+        await wait.for({ seconds: 2 });
+      }
+
+      logger.info(
+        `Unified summary generation completed: ${successCount} successful, ${errorCount} errors`
+      );
+
+      return {
+        message: `Unified summary generation completed: ${successCount} successful, ${errorCount} errors`,
+        successCount,
+        errorCount,
+        totalUsers: activeUsers.length,
+      };
+    } catch (error) {
+      logger.error('Error in unified summary generation', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  },
+});
+
+export const realTimeEventsCronTask = schedules.task({
+  id: 'real-time-events-cron',
+  cron: '*/20 * * * *', // Every 10 minutes
+  maxDuration: 1200,
+  run: async (payload, { ctx }) => {
+    // Check if feature is enabled
+    if (!featureFlags.isRealTimeEventsEnabled()) {
+      logger.info('Real-time events cron job skipped - feature disabled', {
+        ctx,
+      });
+      return {
+        message: 'Feature disabled',
+        successCount: 0,
+        errorCount: 0,
+        totalUsers: 0,
+      };
+    }
+
+    logger.info('Starting real-time events broadcast for all users...', {
+      ctx,
+    });
+
+    try {
+      const activeUsers = await getActiveUsersWithGoogleIntegration();
+      logger.info(
+        `Found ${activeUsers.length} active users for real-time events`
+      );
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const user of activeUsers) {
+        try {
+          // Check if user is enabled for unified notifications
+          if (
+            !featureFlags.isUnifiedNotificationsEnabledForUser(user.user_id)
+          ) {
+            logger.debug(
+              `Skipping real-time events for user ${user.user_id} - not enabled`
+            );
+            continue;
+          }
+
+          await broadcastRealTimeEvents(user.user_id, user.access_token);
+          successCount++;
+          logger.info(
+            `Successfully broadcasted real-time events for user ${user.user_id}`
+          );
+        } catch (error) {
+          errorCount++;
+          logger.error(
+            `Failed to broadcast real-time events for user ${user.user_id}`,
+            {
+              error: error instanceof Error ? error.message : String(error),
+              userId: user.user_id,
+            }
+          );
+        }
+
+        await wait.for({ seconds: 1 });
+      }
+
+      logger.info(
+        `Real-time events broadcast completed: ${successCount} successful, ${errorCount} errors`
+      );
+
+      return {
+        message: `Real-time events broadcast completed: ${successCount} successful, ${errorCount} errors`,
+        successCount,
+        errorCount,
+        totalUsers: activeUsers.length,
+      };
+    } catch (error) {
+      logger.error('Error in real-time events broadcast', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  },
+});
+
+async function broadcastRealTimeEvents(
+  userId: string,
+  accessToken: string
+): Promise<void> {
+  try {
+    // Initialize services
+    const calendarService = new CalendarService();
+    const gmailService = new GmailService();
+
+    await Promise.all([
+      calendarService.initialize(accessToken),
+      gmailService.initialize(accessToken),
+    ]);
+
+    // Fetch recent data (last 10 minutes)
+    const cutoffTime = new Date(Date.now() - 10 * 60 * 1000);
+    const now = new Date();
+
+    const [calendarResponse, emailResponse] = await Promise.all([
+      calendarService.getCalendarEvents(),
+      gmailService.getEmails(),
+    ]);
+
+    const calendarEvents = (calendarResponse.events ||
+      []) as GoogleCalendarEvent[];
+    const emails = (emailResponse.messages || []) as GoogleEmailMessage[];
+
+    // Filter for recent changes
+    const newCalendarEvents = calendarEvents.filter(event => {
+      const eventCreated = new Date(event.created || event.updated || 0);
+      return eventCreated > cutoffTime;
+    });
+
+    const upcomingEvents = calendarEvents.filter(event => {
+      const startTime = new Date(
+        event.start.dateTime || event.start.date || ''
+      );
+      const timeUntilStart = startTime.getTime() - now.getTime();
+      const minutesUntilStart = Math.floor(timeUntilStart / (1000 * 60));
+      return minutesUntilStart > 0 && minutesUntilStart <= 60; // Next hour
+    });
+
+    const recentEmails = emails.filter(email => {
+      const receivedTime = new Date(parseInt(email.internalDate, 10));
+      return receivedTime > cutoffTime;
+    });
+
+    // Broadcast raw events without chat conversion
+    for (const event of newCalendarEvents) {
+      await pusherEventBroadcaster.broadcastToUser(
+        userId,
+        EventType.CALENDAR_NEW_EVENT,
+        {
+          eventId: event.id,
+          title: event.summary || 'No Title',
+          startTime: new Date(event.start.dateTime || event.start.date || ''),
+          endTime: new Date(event.end.dateTime || event.end.date || ''),
+          location: event.location,
+          description: event.description,
+          attendees: event.attendees,
+        }
+      );
+    }
+
+    for (const event of upcomingEvents) {
+      const timeUntilStart = Math.floor(
+        (new Date(event.start.dateTime || event.start.date || '').getTime() -
+          now.getTime()) /
+          (1000 * 60)
+      );
+
+      await pusherEventBroadcaster.broadcastToUser(
+        userId,
+        EventType.CALENDAR_UPCOMING_EVENT,
+        {
+          eventId: event.id,
+          title: event.summary || 'No Title',
+          startTime: new Date(event.start.dateTime || event.start.date || ''),
+          endTime: new Date(event.end.dateTime || event.end.date || ''),
+          location: event.location,
+          timeUntilStart,
+          reminder: timeUntilStart <= 15 ? 'starting' : 'soon',
+        }
+      );
+    }
+
+    // Detect and broadcast important emails
+    const importantEmails = EventDetector.detectImportantEmails(
+      recentEmails.map(email => ({
+        id: email.id,
+        userId,
+        messageId: email.id,
+        threadId: email.threadId,
+        subject:
+          email.headers.find(h => h.name.toLowerCase() === 'subject')?.value ||
+          '',
+        body: email.textBody || '',
+        receivedTime: new Date(parseInt(email.internalDate, 10)),
+        isUnread: true,
+        importance: false,
+        fromAddress:
+          email.headers.find(h => h.name.toLowerCase() === 'from')?.value || '',
+      }))
+    );
+
+    for (const emailEvent of importantEmails) {
+      await pusherEventBroadcaster.broadcastToUser(
+        userId,
+        EventType.GMAIL_IMPORTANT_EMAIL,
+        emailEvent.data
+      );
+    }
+
+    logger.debug(
+      `Broadcasted ${newCalendarEvents.length} calendar events, ${upcomingEvents.length} upcoming events, ${importantEmails.length} important emails for user ${userId}`
+    );
+  } catch (error) {
+    logger.error(`Error broadcasting real-time events for user ${userId}`, {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}

@@ -19,13 +19,7 @@ export const createModelByKey = (
   }
 
   if (!config.apiKey) {
-    const envVar =
-      config.provider === 'anthropic'
-        ? 'ANTHROPIC_API_KEY'
-        : config.provider === 'google'
-          ? 'GOOGLE_API_KEY'
-          : 'OPENAI_API_KEY';
-    const error = `Missing API key for ${config.provider} (model: ${modelKey}). Please set ${envVar} environment variable.`;
+    const error = `Missing API key for ${config.provider} (model: ${modelKey}). Please set LITELLM_KEY environment variable.`;
     logger.error(error);
     throw new Error(error);
   }
