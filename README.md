@@ -167,20 +167,61 @@ curl -X POST "http://localhost:3000/api/v1/chat" \
 
 The AI will automatically respond in the detected language (Spanish, French, or German respectively) while maintaining natural, fluent communication.
 
+## Background Jobs & Automation
+
+### Trigger.dev Integration
+
+The system uses [Trigger.dev](https://trigger.dev) for background job processing and scheduled tasks:
+
+**Manual Tasks** (triggered by user actions):
+
+- `import-gmail`: Import Gmail messages with embedding generation (5 min max)
+- `import-calendar`: Import calendar events with embedding generation (5 min max)
+
+**Scheduled Tasks** (cron-based automation):
+
+- `sync-gmail-cron`: Sync Gmail for all users every 60 minutes (30 min max)
+- `sync-calendar-cron`: Sync calendars for all users every 30 minutes (30 min max)
+- `unified-summary-cron`: Generate periodic summaries every 10 minutes (30 min max)
+- `real-time-events-cron`: Broadcast real-time events every 20 minutes (20 min max)
+
+### Event Processing System
+
+**Event Detection & Broadcasting** (`src/app/events/`):
+
+- **Conflict Detection**: Intelligent calendar conflict analysis
+- **Real-time Events**: Live event broadcasting via Pusher WebSocket
+- **Unified Summaries**: AI-generated periodic summaries of emails and calendar events
+- **Login Summaries**: Contextual summaries when users authenticate
+- **Subscription Management**: User notification preferences and channels
+
+**Event Types**:
+
+- Calendar conflicts and new events
+- Important email detection
+- Upcoming meeting reminders
+- Login summaries with contextual insights
+
 ## API Endpoints
 
 The API is versioned and all endpoints are prefixed with `/api/v1`.
 
 ### Authentication
 
-| Method | Endpoint                | Description                             |
-| :----- | :---------------------- | :-------------------------------------- |
-| `GET`  | `/auth/google`          | Initiates Google OAuth 2.0 login.       |
-| `GET`  | `/auth/google/callback` | Callback for Google OAuth 2.0.          |
-| `POST` | `/auth/token`           | Exchange auth code for an access token. |
-| `POST` | `/auth/logout`          | Invalidates the user's session.         |
-| `GET`  | `/auth/me`              | Get the current user's profile.         |
-| `GET`  | `/auth/session`         | Get the current session details.        |
+| Method | Endpoint                | Description                       |
+| :----- | :---------------------- | :-------------------------------- |
+| `GET`  | `/auth/google`          | Initiates Google OAuth 2.0 login. |
+| `GET`  | `/auth/google/callback` | Callback for Google OAuth 2.0.    |
+| `POST` | `/auth/logout`          | Invalidates the user's session.   |
+| `GET`  | `/auth/me`              | Get the current user's profile.   |
+
+### OAuth API (Client Integration)
+
+| Method | Endpoint               | Description                                     |
+| :----- | :--------------------- | :---------------------------------------------- |
+| `POST` | `/auth/oauth/initiate` | Initiate OAuth for upstream applications.       |
+| `POST` | `/auth/oauth/token`    | Exchange authorization code for access token.   |
+| `POST` | `/auth/oauth/validate` | Validate access token and get user information. |
 
 ### Chat
 
@@ -252,7 +293,7 @@ Server-Sent Events (SSE) format with events:
 
 ### Calendar Conflict Detection
 
-The system automatically detects calendar conflicts and sends real-time notifications via Pusher WebSocket:
+The system automatically detects calendar conflicts and sends real-time notifications via [Pusher WebSocket](https://pusher.com/):
 
 - **Conflict Detection Service**: Intelligent analysis of calendar events
 - **Batch Processing**: Efficient handling of multiple calendar operations
@@ -354,7 +395,8 @@ When vNext network is disabled, the system falls back to intent detection:
 
 - **Containerized Services**: Docker Compose orchestration
 - **Multiple MCP Servers**: Distributed tool architecture
-- **Background Jobs**: Trigger.dev integration with 3600s max duration
+- **Background Jobs**: Trigger.dev integration for automated tasks
+- **Real-time Processing**: Event detection and notification system
 - **Monitoring**: Comprehensive timing instrumentation
 
 ## Deployment
@@ -365,13 +407,13 @@ The `deployment/docker-compose.yml` includes:
 
 - **PostgreSQL/TimescaleDB**: Primary database with time-series extensions
 - **Redis**: Caching and session storage
-- **MCP Servers**: Multiple Model Context Protocol servers
-  - Google Assistant MCP
-  - Time/Booking MCP
-  - Web Search MCP
-  - Atlassian MCP
-  - Reddit MCP
-  - Perplexity MCP
+- **MCP Servers**: Multiple Model Context Protocol servers, more to add later
+  - [Google Assistant MCP](https://github.com/samwang0723/mcp-google-assistant)
+  - [Restaurant Booking MCP](https://github.com/samwang0723/mcp-booking)
+  - [Web Search MCP](https://github.com/samwang0723/mcp-brave)
+  - [Atlassian MCP](https://github.com/samwang0723/mcp-atlassian)
+  - [Reddit MCP](https://github.com/samwang0723/mcp-reddit)
+  - [Perplexity MCP](https://github.com/samwang0723/mcp-perplexity)
 
 ### Production Considerations
 
