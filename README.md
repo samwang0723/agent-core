@@ -4,24 +4,41 @@ Agent Core is a robust, AI-powered agent framework built with TypeScript, Hono, 
 
 ## Features
 
-- **Conversational AI:** Core logic for handling chat messages, with support for both streaming (SSE) and standard JSON responses.
-- **Internationalization:** Multi-language support with automatic locale detection from headers, query parameters, and Accept-Language headers.
-- **Authentication:** Secure user authentication using Google OAuth 2.0.
-- **Intent Detection:** A sophisticated intent detection system to route user messages to the appropriate agent or tool.
-- **Multi-Model Support:** Integrates with various AI models, including Anthropic, Google, and OpenAI.
-- **Mastra Framework:** Built on the Mastra agent framework for powerful and flexible agent creation.
-- **Long-Term Memory:** Conversation history and memory management for context-aware interactions.
-- **Tool Integration:** Supports a wide range of tools, including Google Calendar, Gmail, Jira, web search, and more.
-- **Performance Monitoring:** Comprehensive timing instrumentation and optimized caching for enhanced performance.
-- **Containerized:** Comes with a Docker Compose setup for easy and consistent deployment of the application and its dependent services.
+- **Conversational AI:** Advanced chat system with streaming (SSE) and standard JSON responses
+- **Real-time Events:** Pusher-based WebSocket notifications for calendar conflicts and system events
+- **Calendar Intelligence:** Sophisticated conflict detection and notification system
+- **Multi-Agent System:** Specialized agents with vNext network orchestration
+- **MCP Integration:** Full Model Context Protocol support with multiple server integrations
+- **Multi-Model Support:** Anthropic, OpenAI, and Google AI model integration
+- **Memory Management:** Optimized conversation history with 30s TTL caching
+- **Authentication:** Google OAuth 2.0 with session-based authentication
+- **Internationalization:** 10+ language support with automatic locale detection
+- **Tool Ecosystem:** Google Calendar, Gmail, Jira, Confluence, web search, Reddit, and more
+- **Performance Optimized:** Comprehensive timing instrumentation and caching
+- **Microservice Architecture:** PostgreSQL/TimescaleDB, Redis, and containerized MCP servers
 
 ## Project Structure
 
-The project is organized into two main parts:
+### Core Components
 
-- `src/app`: Contains the web server logic, API routes, controllers, and user-facing services. This is the entry point for all API requests.
-- `src/mastra`: Contains the core agent logic, including agent definitions, memory services, model integrations, and tools.
-- `deployment`: Contains Docker and database schema files for deployment.
+- **`src/app/`**: Hono-based REST API server with domain services
+  - Authentication, chat endpoints, health checks, events
+  - Calendar, email, user management, embeddings systems
+  - Real-time event processing and conflict detection
+- **`src/mastra/`**: Mastra agent framework with AI orchestration
+  - Specialized agents, memory management, model integration
+  - Local and remote tool systems with MCP protocol
+  - vNext network orchestration for intelligent routing
+- **`deployment/`**: Docker Compose infrastructure
+  - PostgreSQL/TimescaleDB, Redis, MCP servers
+
+### Domain Services
+
+- **Calendar System**: Google Calendar integration with conflict detection
+- **Email System**: Gmail integration for email operations
+- **Event System**: Real-time notifications and subscription management
+- **Embeddings**: Vector search and semantic capabilities
+- **User Management**: Authentication and session handling
 
 ## Prerequisites
 
@@ -33,36 +50,6 @@ Before you begin, ensure you have the following installed:
 ## Environment Variables
 
 To run the application, you need to create a `.env` file in the root of the project. Copy the `.env.example` file (if it exists) or create a new one with the following variables:
-
-```env
-# Application Port
-PORT=3000
-
-# CORS Origin
-CORS_ORIGIN=http://localhost:3000
-
-# Google OAuth 2.0 Credentials
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-GOOGLE_REDIRECT_URI="http://localhost:3000/api/v1/auth/google/callback"
-
-# Database Connection (for TimescaleDB running in Docker)
-DATABASE_URL="postgres://postgres:postgres@localhost:5432/agent-core-main"
-
-# Mastra Configuration
-MASTRA_USING_VNEXT_NETWORK=true
-
-# AI Provider API Keys
-ANTHROPIC_API_KEY="your-anthropic-api-key"
-OPENAI_API_KEY="your-openai-api-key"
-GOOGLE_API_KEY="your-google-api-key"
-
-# Optional: Performance and Debugging
-ENABLE_PERFORMANCE_LOGGING=false
-NODE_ENV=development
-
-# Add any other required environment variables for tools (e.g., Jira, etc.)
-```
 
 ## Getting Started
 
@@ -77,7 +64,7 @@ NODE_ENV=development
     Create a `.env` file and populate it with the necessary values as described above.
 
 3.  **Start dependent services:**
-    This will start the PostgreSQL database and other microservices defined in the `docker-compose.yml` file.
+    This will start PostgreSQL/TimescaleDB, Redis, and MCP servers.
 
     ```sh
     docker-compose -f deployment/docker-compose.yml up -d
@@ -95,44 +82,40 @@ NODE_ENV=development
 To run the application in development mode with live reloading:
 
 ```sh
-bun run dev
+bun run dev        # Start API server on port 3000
+bun run dev:mastra # Start Mastra development on port 4111
 ```
 
-The server will be available at `http://localhost:3000`.
-
-### Mastra Development
-
-To run the Mastra framework in development mode:
+### Build
 
 ```sh
-bun run dev:mastra
+bun run build        # Build application to ./dist
+bun run build:mastra # Build Mastra framework
 ```
 
 ### Code Quality
 
-Format your code:
-
 ```sh
-bun run format        # Format code
-bun run format:check  # Check formatting
-```
+# Format code
+bun run format        # Write formatting changes
+bun run format:check  # Check formatting only
 
-Lint your code:
-
-```sh
+# Lint code
 bun run lint          # Run linting
-bun run lint:fix      # Fix linting issues
+bun run lint:fix      # Fix linting issues automatically
 ```
 
 ### Production
 
-To build the application for production:
-
 ```sh
-bun run build
+bun run build        # Build application to ./dist
+bun run build:mastra # Build Mastra framework
+
+bun ./dist/index.js
+npx trigger.dev@latest dev # Start trigger.dev jobs
 ```
 
-This will create a production-ready build in the `dist/` directory. You will need a production-ready start script to run the built files, for example using `node` or `bun`.
+The builds will be created in the respective `dist/` directories. You'll need a production start script to run the built files.
 
 ## Internationalization
 
@@ -211,6 +194,15 @@ _Authentication is required for all chat endpoints._
 | `DELETE` | `/chat/history` | Delete the conversation history for the user.    |
 | `POST`   | `/chat/init`    | Initialize the chat memory for the user session. |
 
+### Events
+
+_Authentication is required for event endpoints._
+
+| Method | Endpoint         | Description                          |
+| :----- | :--------------- | :----------------------------------- |
+| `POST` | `/events/detect` | Trigger calendar conflict detection. |
+| `GET`  | `/events/status` | Get event processing status.         |
+
 #### Chat Request Headers
 
 Both `/chat` and `/chat/stream` endpoints support the following optional headers for localization:
@@ -256,6 +248,33 @@ Server-Sent Events (SSE) format with events:
 | :----- | :-------- | :---------------------------------------- |
 | `GET`  | `/health` | Get the health status of the application. |
 
+## Real-time Features
+
+### Calendar Conflict Detection
+
+The system automatically detects calendar conflicts and sends real-time notifications via Pusher WebSocket:
+
+- **Conflict Detection Service**: Intelligent analysis of calendar events
+- **Batch Processing**: Efficient handling of multiple calendar operations
+- **Real-time Notifications**: Instant alerts via WebSocket connections
+- **Event Subscriptions**: Customizable notification preferences
+
+### WebSocket Events
+
+Connect to Pusher channels to receive real-time updates:
+
+```javascript
+// Subscribe to calendar conflict notifications
+const pusher = new Pusher('your-pusher-key', {
+  cluster: 'your-cluster',
+});
+
+const channel = pusher.subscribe('calendar-conflicts');
+channel.bind('conflict-detected', data => {
+  console.log('Calendar conflict:', data);
+});
+```
+
 ## Architecture
 
 ### Agent Execution Modes
@@ -278,27 +297,87 @@ When vNext network is disabled, the system falls back to intent detection:
 - **Pattern matching**: Uses keyword and pattern matching for agent selection
 - **Agent routing**: Routes to specific agents based on detected intent
 
-### Available Agents
+### Agent Ecosystem
 
+**Core Agents**:
+
+- **Master Agent**: Orchestrator for complex multi-step tasks
 - **General Agent**: Default conversational assistant with Jarvis-like personality
-- **Weather Agent**: Weather information and forecasts
+
+**Productivity Agents**:
+
 - **Gmail Agent**: Email management and operations
-- **Google Calendar Agent**: Calendar scheduling and management
+- **Google Calendar Agent**: Calendar scheduling with conflict detection
 - **Jira Agent**: Project management and issue tracking
-- **Confluence Agent**: Documentation and knowledge management
+- **Confluence Agent**: Documentation and knowledge management (v2 API)
+
+**Information Agents**:
+
+- **Weather Agent**: Weather information and forecasts
 - **Web Search Agent**: Internet search capabilities
 - **Reddit Agent**: Reddit content and discussions
+
+**Specialized Agents**:
+
 - **Music Agent**: Music recommendations and information
 - **Restaurant Agent**: Restaurant recommendations and reviews
 - **Portfolio Agent**: Portfolio management and tracking
 
-### Performance Features
+### MCP Integration
 
-- **Memory Caching**: 30-second TTL for memory patterns to reduce database queries
-- **Streaming Responses**: Real-time response generation with SSE
-- **Timing Instrumentation**: Comprehensive performance monitoring
-- **Graceful Error Recovery**: Partial response capability on errors
+**Local Tools**:
+
+- Embedding operations for semantic search
+- Portfolio management tools
+- Weather data processing
+
+**Remote MCP Servers**:
+
+- Google Assistant integration
+- Time and scheduling services
+- Booking and reservation systems
+- Web search and Perplexity AI
+- Atlassian suite (Jira/Confluence)
+- Reddit API integration
+
+### Performance & Infrastructure
+
+**Performance Optimizations**:
+
+- **Memory Caching**: 30-second TTL for memory patterns
+- **Streaming Responses**: Real-time SSE generation
+- **Database Optimization**: TimescaleDB for time-series data
+- **Redis Caching**: Session storage and real-time data
+- **Graceful Error Recovery**: Partial response capability
+
+**Infrastructure**:
+
+- **Containerized Services**: Docker Compose orchestration
+- **Multiple MCP Servers**: Distributed tool architecture
+- **Background Jobs**: Trigger.dev integration with 3600s max duration
+- **Monitoring**: Comprehensive timing instrumentation
 
 ## Deployment
 
-The application is designed to be deployed using Docker. The `deployment/docker-compose.yml` file provides a starting point for running the application and its dependencies in a containerized environment. You can adapt this file for your production deployment needs.
+### Docker Compose Services
+
+The `deployment/docker-compose.yml` includes:
+
+- **PostgreSQL/TimescaleDB**: Primary database with time-series extensions
+- **Redis**: Caching and session storage
+- **MCP Servers**: Multiple Model Context Protocol servers
+  - Google Assistant MCP
+  - Time/Booking MCP
+  - Web Search MCP
+  - Atlassian MCP
+  - Reddit MCP
+  - Perplexity MCP
+
+### Production Considerations
+
+- Configure environment variables for production
+- Set up SSL/TLS certificates
+- Configure proper CORS origins
+- Set up monitoring and logging
+- Configure backup strategies for PostgreSQL
+- Set appropriate resource limits for containers
