@@ -401,6 +401,10 @@ When vNext network is disabled, the system falls back to intent detection:
 
 ## Deployment
 
+### LiteLLM proxy
+
+[LiteLLM Installation](https://github.com/samwang0723/litellm-production)
+
 ### Docker Compose Services
 
 The `deployment/docker-compose.yml` includes:
