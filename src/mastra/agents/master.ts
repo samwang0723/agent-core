@@ -201,13 +201,45 @@ Remember: You're not just an agent with tools - you're a conversational partner 
       'atlassian',
       'search_confluence'
     )!,
-    getConfluenceContent: toolRegistry.getServerTool(
+    searchConfluencePagesByTitle: toolRegistry.getServerTool(
+      'atlassian',
+      'search_confluence_pages_by_title'
+    )!,
+    getConfluencePageContent: toolRegistry.getServerTool(
       'atlassian',
       'get_confluence_content'
+    )!,
+    getConfluenceSpaces: toolRegistry.getServerTool(
+      'atlassian',
+      'get_confluence_spaces'
+    )!,
+    getConfluenceSpaceByIdOrKey: toolRegistry.getServerTool(
+      'atlassian',
+      'get_confluence_space_by_id_or_key'
     )!,
     getConfluencePages: toolRegistry.getServerTool(
       'atlassian',
       'get_confluence_pages'
+    )!,
+    getConfluencePagesByLabel: toolRegistry.getServerTool(
+      'atlassian',
+      'get_confluence_pages_by_label'
+    )!,
+    getConfluencePageInlineComments: toolRegistry.getServerTool(
+      'atlassian',
+      'get_confluence_page_inline_comments'
+    )!,
+    createConfluencePage: toolRegistry.getServerTool(
+      'atlassian',
+      'confluence_create_page'
+    )!,
+    updateConfluencePageTitle: toolRegistry.getServerTool(
+      'atlassian',
+      'update_confluence_page_title'
+    )!,
+    createConfluenceFooterComment: toolRegistry.getServerTool(
+      'atlassian',
+      'create_confluence_footer_comment'
     )!,
 
     // Gmail tools
