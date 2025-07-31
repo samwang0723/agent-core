@@ -72,29 +72,45 @@ Before sending any response, verify that you have:
       'atlassian',
       'search_confluence'
     )!,
-    getConfluenceSpace: toolRegistry.getServerTool(
+    searchConfluencePagesByTitle: toolRegistry.getServerTool(
       'atlassian',
-      'get_confluence_space'
+      'search_confluence_pages_by_title'
     )!,
-    getConfluenceContent: toolRegistry.getServerTool(
+    getConfluencePageContent: toolRegistry.getServerTool(
       'atlassian',
       'get_confluence_content'
+    )!,
+    getConfluenceSpaces: toolRegistry.getServerTool(
+      'atlassian',
+      'get_confluence_spaces'
+    )!,
+    getConfluenceSpaceByIdOrKey: toolRegistry.getServerTool(
+      'atlassian',
+      'get_confluence_space_by_id_or_key'
     )!,
     getConfluencePages: toolRegistry.getServerTool(
       'atlassian',
       'get_confluence_pages'
     )!,
+    getConfluencePagesByLabel: toolRegistry.getServerTool(
+      'atlassian',
+      'get_confluence_pages_by_label'
+    )!,
+    getConfluencePageInlineComments: toolRegistry.getServerTool(
+      'atlassian',
+      'get_confluence_page_inline_comments'
+    )!,
     createConfluencePage: toolRegistry.getServerTool(
       'atlassian',
       'confluence_create_page'
     )!,
-    updateConfluencePage: toolRegistry.getServerTool(
+    updateConfluencePageTitle: toolRegistry.getServerTool(
       'atlassian',
-      'confluence_update_page'
+      'update_confluence_page_title'
     )!,
-    deleteConfluencePage: toolRegistry.getServerTool(
+    createConfluenceFooterComment: toolRegistry.getServerTool(
       'atlassian',
-      'confluence_delete_page'
+      'create_confluence_footer_comment'
     )!,
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
