@@ -16,7 +16,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 // Specify the embedding model, e.g., 'text-embedding-3-small'
 // const embeddingModel = openai.embedding('text-embedding-3-small');
 const google = createGoogleGenerativeAI({
-  apiKey: process.env.LITELLM_KEY,
+  apiKey: process.env.GOOGLE_API_KEY,
   headers: {
     'Accept-Encoding': 'identity',
   },
