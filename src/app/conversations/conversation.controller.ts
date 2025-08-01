@@ -108,8 +108,8 @@ app.post('/stream', requireAuth, async c => {
     try {
       sseOutput.onStart?.({ sessionId: user.id, streaming: true });
 
-      if (!message || typeof message !== 'string') {
-        throw new Error('Message is required and must be a string');
+      if (!message) {
+        throw new Error('Message is required');
       }
 
       // Detailed timing instrumentation
@@ -211,27 +211,24 @@ app.post('/stream', requireAuth, async c => {
 
         const masterAgent = mastra.getAgent('masterAgent')!;
         const agentStreamStartTime = performance.now();
-        const streamResult = await masterAgent.stream(
-          `${contextMessage.content}\n\n${message}`,
-          {
-            resourceId,
-            threadId,
-            maxRetries: 1,
-            maxSteps: 5,
-            maxTokens: 1024,
-            onFinish: () => {
-              const totalDuration = performance.now() - requestStartTime;
-              logger.info(
-                `[${user.id}] Agent: Total stream took ${totalDuration.toFixed(2)} ms`
-              );
-            },
-            runtimeContext,
-            context: [
-              { role: 'system', content: localeSystemMessage },
-              contextMessage,
-            ],
-          }
-        );
+        const streamResult = await masterAgent.stream(message, {
+          resourceId,
+          threadId,
+          maxRetries: 1,
+          maxSteps: 5,
+          maxTokens: 1024,
+          onFinish: () => {
+            const totalDuration = performance.now() - requestStartTime;
+            logger.info(
+              `[${user.id}] Agent: Total stream took ${totalDuration.toFixed(2)} ms`
+            );
+          },
+          runtimeContext,
+          context: [
+            { role: 'system', content: localeSystemMessage },
+            contextMessage,
+          ],
+        });
         const agentStreamEndTime = performance.now();
         logger.info(
           `[${user.id}] Agent stream setup took ${(agentStreamEndTime - agentStreamStartTime).toFixed(2)} ms`
@@ -371,8 +368,8 @@ app.post('/', requireAuth, async c => {
   const user = c.get('user');
   const { message } = await c.req.json();
 
-  if (!message || typeof message !== 'string') {
-    return c.json({ error: 'Message is required and must be a string' }, 400);
+  if (!message) {
+    return c.json({ error: 'Message is required' }, 400);
   }
 
   const requestStartTime = performance.now();
@@ -427,21 +424,18 @@ app.post('/', requireAuth, async c => {
     } else {
       const masterAgent = mastra.getAgent('masterAgent')!;
       const generateStartTime = performance.now();
-      const response = await masterAgent.generate(
-        `${contextMessage.content}\n\n${message}`,
-        {
-          resourceId,
-          threadId,
-          maxRetries: 1,
-          maxSteps: 5,
-          maxTokens: 1024,
-          runtimeContext,
-          context: [
-            { role: 'system', content: localeSystemMessage },
-            contextMessage,
-          ],
-        }
-      );
+      const response = await masterAgent.generate(message, {
+        resourceId,
+        threadId,
+        maxRetries: 1,
+        maxSteps: 5,
+        maxTokens: 1024,
+        runtimeContext,
+        context: [
+          { role: 'system', content: localeSystemMessage },
+          contextMessage,
+        ],
+      });
       const generateEndTime = performance.now();
       const totalDuration = generateEndTime - requestStartTime;
       logger.info(
