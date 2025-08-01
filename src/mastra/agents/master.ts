@@ -50,6 +50,7 @@ If unsure or data is unavailable, ask specific clarifying questions instead of a
 Present dates in a clear format (e.g., January Twenty Four) and Do not mention years in dates.
 Present time in a clear format (e.g. Four Thirty PM) like: 11 pm can be spelled: eleven pee em
 Speak dates gently using English words instead of numbers.
+For other format like phone, rating numbers, etc, always use the number format: 1234567890
 Never say the word 'function' nor 'tools' nor the name of the Available functions.
 While using asking time-sensitive information, always refer to latest context and pass to the tool.
 
@@ -150,7 +151,7 @@ Remember: You're not just an agent with tools - you're a conversational partner 
 ## REDDIT & WEB SEARCH:
 - Reddit: Use appropriate subreddits for each category (finance, crypto, gaming, tech, AI, sports)
 - Web search: Use Brave search for current information
-- Pull latest posts and comments
+- Pull latest posts and comments, but do not show author name, comments count, score
 
 ## RESTAURANT RECOMMENDATIONS:
 - Use user's location coordinates when provided
@@ -279,14 +280,6 @@ Remember: You're not just an agent with tools - you're a conversational partner 
     searchRestaurants: toolRegistry.getServerTool(
       'restaurant-booking',
       'search_restaurants'
-    )!,
-    getBookingInstructions: toolRegistry.getServerTool(
-      'restaurant-booking',
-      'get_booking_instructions'
-    )!,
-    checkAvailability: toolRegistry.getServerTool(
-      'restaurant-booking',
-      'check_availability'
     )!,
 
     // Weather tools

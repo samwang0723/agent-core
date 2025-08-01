@@ -71,14 +71,6 @@ Before sending any response, verify that you have:
       'restaurant-booking',
       'search_restaurants'
     )!,
-    getBookingInstructions: toolRegistry.getServerTool(
-      'restaurant-booking',
-      'get_booking_instructions'
-    )!,
-    checkAvailability: toolRegistry.getServerTool(
-      'restaurant-booking',
-      'check_availability'
-    )!,
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   memory: mastraMemoryService.getMemory() as any,
