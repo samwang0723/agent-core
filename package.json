@@ -2,7 +2,7 @@
   "name": "agent-core",
   "scripts": {
     "dev": "bun --watch src/app/index.ts",
-    "build": "bun build ./src/app/index.ts --outdir ./dist --target node",
+    "build": "bun build ./src/app/index.ts --outdir ./dist --packages=external",
     "dev:mastra": "bun --env-file=.env run mastra dev",
     "build:mastra": "bun --env-file=.env run mastra build",
     "format": "prettier --write .",

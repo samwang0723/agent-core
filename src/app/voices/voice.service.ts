@@ -100,7 +100,9 @@ export async function transcribeAudio(
         return '';
       }
 
-      const groq = new Groq();
+      const groq = new Groq({
+        apiKey: config.apiKey,
+      });
 
       const audioFile = new File([audio], 'audio.webm', {
         type: 'audio/webm',
