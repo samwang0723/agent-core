@@ -2,6 +2,7 @@ import { Session } from '../middleware/auth';
 import { GoogleTokens, GoogleUserInfo } from './user.dto';
 import * as userRepo from './user.repository';
 import { createClient, RedisClientType } from 'redis';
+import logger from '../utils/logger';
 
 // Interface definitions for OAuth flow
 interface OAuthState {
@@ -195,11 +196,11 @@ export const getAuthCode = async (
     console.error('Redis error, falling back to in-memory store:', error);
     // Fallback to in-memory storage
     const data = authCodeStore.get(authCode) || null;
-    console.log(
+    logger.debug(
       `getAuthCode: ${authCode}, found in memory: ${!!data}, store size: ${authCodeStore.size}`
     );
     if (data) {
-      console.log(
+      logger.debug(
         `getAuthCode: expires_at: ${data.expires_at}, current: ${Date.now()}, expired: ${Date.now() > data.expires_at}`
       );
     }
