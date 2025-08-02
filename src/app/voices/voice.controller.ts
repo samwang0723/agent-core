@@ -409,7 +409,6 @@ app.post('/realtime', requireAuth, async c => {
 
     // Helper function to send SSE messages with proper formatting
     const sendMessage = async (message: SSEMessage) => {
-      console.log('Sending message:', message.type);
       await stream.write(`data: ${JSON.stringify(message)}\n\n`);
     };
 

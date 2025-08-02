@@ -708,24 +708,24 @@ app.post('/oauth/token', async c => {
     }
 
     // Check if we already have a cached response for this code (handles duplicate requests)
-    console.debug('POST /oauth/token - processing code:', code);
+    logger.debug('POST /oauth/token - processing code:', code);
     const cachedResponse = await getTokenResponse(code);
     if (cachedResponse) {
-      console.log('Returning cached token response for duplicate request');
+      logger.debug('Returning cached token response for duplicate request');
       return c.json(cachedResponse);
     }
 
     // Retrieve authorization code data
     const authCodeData = await getAuthCode(code);
     if (!authCodeData) {
-      console.log('Auth code not found - possibly already used or expired');
+      logger.debug('Auth code not found - possibly already used or expired');
       throw createServerError(
         ErrorCodes.INVALID_TOKEN,
         'Invalid or expired authorization code'
       );
     }
 
-    console.log('Auth code found, processing token exchange...');
+    logger.debug('Auth code found, processing token exchange...');
     // Immediately delete the auth code to prevent reuse
     await deleteAuthCode(code);
 

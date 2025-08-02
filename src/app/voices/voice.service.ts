@@ -8,6 +8,7 @@ import { transcriptionConfigs, ttsConfigs } from './config';
 import { CartesiaClient } from '@cartesia/cartesia-js';
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import Groq from 'groq-sdk';
+import logger from '../utils/logger';
 
 /**
  * Sanitizes and validates text for TTS processing
@@ -255,7 +256,7 @@ export function synthesizeSpeechStream(
               'Cartesia API key or Voice ID is not configured for TTS.'
             );
           }
-          console.log('Cartesia TTS config validated:', {
+          logger.debug('Cartesia TTS config validated:', {
             hasApiKey: !!config.apiKey,
             voiceId: config.voiceId,
             modelName: config.modelName,
@@ -267,7 +268,7 @@ export function synthesizeSpeechStream(
               'ElevenLabs API key or Voice ID is not configured for TTS.'
             );
           }
-          console.log('ElevenLabs TTS config validated:', {
+          logger.debug('ElevenLabs TTS config validated:', {
             hasApiKey: !!config.apiKey,
             voiceId: config.voiceId,
             modelName: config.modelName,
@@ -283,7 +284,7 @@ export function synthesizeSpeechStream(
           const minChunkSize = 20;
 
           // Process incoming text chunks
-          console.log('Starting to process text chunks');
+          logger.debug('Starting to process text chunks');
           for await (const chunk of textChunks) {
             if (abortSignal?.aborted) break;
 
@@ -349,7 +350,7 @@ export function synthesizeSpeechStream(
           // Process any remaining text
           if (textBuffer.trim() && !abortSignal?.aborted) {
             const remaining = textBuffer.trim();
-            console.log(
+            logger.debug(
               'Processing remaining text buffer:',
               remaining.length,
               'chars'
@@ -359,7 +360,7 @@ export function synthesizeSpeechStream(
             }
             await processTextChunk(remaining);
           }
-          console.log('Finished processing all text chunks');
+          logger.debug('Finished processing all text chunks');
         };
 
         if (engine === 'cartesia' || engine === 'cartesiachinese') {
@@ -514,20 +515,20 @@ export function synthesizeSpeechStream(
         }
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
-          console.info('Streaming TTS was aborted');
+          logger.debug('Streaming TTS was aborted');
         } else {
-          console.error('Streaming TTS failed:', error);
+          logger.error('Streaming TTS failed:', error);
           controller.error(error);
         }
       } finally {
-        console.log('Attempting to close stream controller');
+        logger.debug('Attempting to close stream controller');
         try {
           controller.close();
-          console.log('Stream controller closed successfully');
+          logger.debug('Stream controller closed successfully');
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (e) {
           // Controller might already be closed
-          console.log('Controller already closed or error closing:', e);
+          logger.warn('Controller already closed or error closing:', e);
         }
       }
     },
