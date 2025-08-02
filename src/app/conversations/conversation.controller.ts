@@ -3,7 +3,12 @@ import { streamSSE } from 'hono/streaming';
 import { Session } from '../middleware/auth';
 import logger from '../utils/logger';
 import { requireAuth } from '../middleware/auth';
-import { HonoSSEOutput } from './conversation.dto';
+import {
+  SSEMessage,
+  TextMessage,
+  StatusMessage,
+  ErrorMessage,
+} from '../utils/sse';
 import { mastraMemoryService } from '../../mastra/memory/memory.service';
 import { memoryPatterns } from '../../mastra/memory/memory.dto';
 import { messageHistory } from './history.service';
@@ -90,7 +95,9 @@ app.post('/stream', requireAuth, async c => {
 
   return streamSSE(c, async stream => {
     const requestStartTime = performance.now();
-    const sseOutput = new HonoSSEOutput(stream, user.id);
+    const requestId = `${user.id}-${Date.now()}`;
+
+    let textSequence = 0;
 
     // Send SSE prelude immediately to establish connection
     await stream.write(':\n\n');
@@ -99,18 +106,31 @@ app.post('/stream', requireAuth, async c => {
     const keepAliveInterval = setInterval(async () => {
       try {
         await stream.write(': keep-alive\n\n');
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
+        logger.error('Error writing keep-alive:', error);
         clearInterval(keepAliveInterval);
       }
     }, 500);
 
-    try {
-      sseOutput.onStart?.({ sessionId: user.id, streaming: true });
+    // Helper function to send SSE messages with proper formatting
+    const sendMessage = async (message: SSEMessage) => {
+      await stream.write(`data: ${JSON.stringify(message)}\n\n`);
+    };
 
+    try {
       if (!message) {
         throw new Error('Message is required');
       }
+
+      // Send status: Starting processing
+      const startMessage: StatusMessage = {
+        type: 'status',
+        status: 'processing_started',
+        message: 'Starting message processing',
+        timestamp: new Date().toISOString(),
+        request_id: requestId,
+      };
+      await sendMessage(startMessage);
 
       // Detailed timing instrumentation
       const contextStartTime = performance.now();
@@ -121,123 +141,49 @@ app.post('/stream', requireAuth, async c => {
         `[${user.id}] Context generation took ${(contextEndTime - contextStartTime).toFixed(2)} ms`
       );
 
-      const usingVNextNetwork =
-        process.env.MASTRA_USING_VNEXT_NETWORK === 'true';
-
       // Get cached memory patterns for optimization
       const { resourceId, threadId } = getCachedMemoryPatterns(user.id);
 
       // This will hold the stream of text chunks, unified from different sources.
-      let textStream: ReadableStream<string>;
-      if (usingVNextNetwork) {
-        const networkStartTime = performance.now();
-        const network = mastra.vnext_getNetwork('orchestrator-network')!;
-        const networkEndTime = performance.now();
-        logger.info(
-          `[${user.id}] vNext network retrieval took ${(networkEndTime - networkStartTime).toFixed(2)} ms`
-        );
+      logger.info(`[${user.id}] Agent: Using agent (locale: ${locale})`);
 
-        logger.info(
-          `[${user.id}] Agent: Using vNext network (locale: ${locale})`
-        );
-        const streamStartTime = performance.now();
-        const networkResult = await network.stream(
-          `${localeSystemMessage}\n\n${contextMessage.content} ${message}`,
-          {
-            resourceId,
-            threadId,
-            runtimeContext,
-          }
-        );
-        const streamEndTime = performance.now();
-        logger.info(
-          `[${user.id}] Network stream setup took ${(streamEndTime - streamStartTime).toFixed(2)} ms`
-        );
+      // Send status: AI processing started
+      const aiProcessingMessage: StatusMessage = {
+        type: 'status',
+        status: 'ai_processing_started',
+        message: 'Starting AI text generation',
+        timestamp: new Date().toISOString(),
+        request_id: requestId,
+      };
+      await sendMessage(aiProcessingMessage);
 
-        // Adapt Mastra vNext stream to a simple text stream - OPTIMIZED VERSION
-        const reader = (
-          networkResult.stream as unknown as ReadableStream<{
-            type: string;
-            argsTextDelta?: string;
-          }>
-        ).getReader();
+      const masterAgent = mastra.getAgent('masterAgent')!;
+      const agentStreamStartTime = performance.now();
+      const streamResult = await masterAgent.stream(message, {
+        resourceId,
+        threadId,
+        maxRetries: 1,
+        maxSteps: 5,
+        maxTokens: 1024,
+        onFinish: () => {
+          const totalDuration = performance.now() - requestStartTime;
+          logger.info(
+            `[${user.id}] Agent: Total stream took ${totalDuration.toFixed(2)} ms`
+          );
+        },
+        runtimeContext,
+        context: [
+          { role: 'system', content: localeSystemMessage },
+          contextMessage,
+        ],
+      });
+      const agentStreamEndTime = performance.now();
+      logger.info(
+        `[${user.id}] Agent stream setup took ${(agentStreamEndTime - agentStreamStartTime).toFixed(2)} ms`
+      );
 
-        textStream = new ReadableStream<string>({
-          async start(controller) {
-            let firstChunkTime: number | null = null;
-            try {
-              let done = false;
-              while (!done) {
-                const chunkStartTime = performance.now();
-                const result = await reader.read();
-                done = result.done;
+      const textStream = streamResult.textStream as ReadableStream<string>;
 
-                if (!done && result.value?.argsTextDelta) {
-                  if (firstChunkTime === null) {
-                    firstChunkTime = performance.now();
-                    logger.info(
-                      `[${user.id}] First chunk received after ${(firstChunkTime - requestStartTime).toFixed(2)} ms`
-                    );
-                  }
-
-                  const chunkEndTime = performance.now();
-                  if (process.env.ENABLE_PERFORMANCE_LOGGING === 'true') {
-                    logger.debug(
-                      `[${user.id}] Chunk processing took ${(chunkEndTime - chunkStartTime).toFixed(2)} ms`
-                    );
-                  }
-
-                  // Minimize latency by immediately enqueuing
-                  controller.enqueue(result.value.argsTextDelta);
-                }
-              }
-              controller.close();
-            } catch (error) {
-              logger.error(`[${user.id}] Stream error:`, error);
-              // Graceful error recovery - try to provide partial response
-              if (firstChunkTime !== null) {
-                controller.enqueue(
-                  '\n\n[Response was interrupted due to an error]'
-                );
-              }
-              controller.error(error);
-            } finally {
-              reader.releaseLock();
-            }
-          },
-        });
-      } else {
-        logger.info(`[${user.id}] Agent: Using agent (locale: ${locale})`);
-
-        const masterAgent = mastra.getAgent('masterAgent')!;
-        const agentStreamStartTime = performance.now();
-        const streamResult = await masterAgent.stream(message, {
-          resourceId,
-          threadId,
-          maxRetries: 1,
-          maxSteps: 5,
-          maxTokens: 1024,
-          onFinish: () => {
-            const totalDuration = performance.now() - requestStartTime;
-            logger.info(
-              `[${user.id}] Agent: Total stream took ${totalDuration.toFixed(2)} ms`
-            );
-          },
-          runtimeContext,
-          context: [
-            { role: 'system', content: localeSystemMessage },
-            contextMessage,
-          ],
-        });
-        const agentStreamEndTime = performance.now();
-        logger.info(
-          `[${user.id}] Agent stream setup took ${(agentStreamEndTime - agentStreamStartTime).toFixed(2)} ms`
-        );
-
-        textStream = streamResult.textStream as ReadableStream<string>;
-      }
-
-      let accumulated = '';
       let chunkCount = 0;
       let firstChunkReceived = false;
 
@@ -253,10 +199,21 @@ app.post('/stream', requireAuth, async c => {
           firstChunkReceived = true;
         }
 
-        accumulated += chunk;
-
         try {
-          sseOutput.onChunk(chunk, accumulated);
+          // Send text chunk as structured message
+          const textMessage: TextMessage = {
+            type: 'text',
+            data: chunk,
+            timestamp: new Date().toISOString(),
+            request_id: requestId,
+            metadata: {
+              sequence: textSequence++,
+              format: 'raw',
+              char_count: chunk.length,
+              is_complete_sentence: false,
+            },
+          };
+          await sendMessage(textMessage);
 
           if (process.env.ENABLE_PERFORMANCE_LOGGING === 'true') {
             logger.debug(
@@ -272,6 +229,20 @@ app.post('/stream', requireAuth, async c => {
         }
       }
 
+      // Send completion message
+      const completionMessage: StatusMessage = {
+        type: 'status',
+        status: 'complete',
+        message: 'Processing completed successfully',
+        timestamp: new Date().toISOString(),
+        request_id: requestId,
+        metadata: {
+          total_processing_time_ms: performance.now() - requestStartTime,
+          text_chunks: textSequence,
+        },
+      };
+      await sendMessage(completionMessage);
+
       const totalProcessingTime = performance.now() - requestStartTime;
       logger.info(
         `[${user.id}] Total request processing time: ${totalProcessingTime.toFixed(2)} ms, chunks: ${chunkCount}`
@@ -283,24 +254,31 @@ app.post('/stream', requireAuth, async c => {
         error
       );
 
-      // Enhanced error recovery with partial response capability
-      try {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error occurred';
-        sseOutput.onError(errorMessage);
+      // Send structured error message
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorCode = errorMessage.includes('Message is required')
+        ? 'MISSING_MESSAGE'
+        : errorMessage.includes('Context')
+          ? 'CONTEXT_GENERATION_FAILED'
+          : errorMessage.includes('Agent')
+            ? 'AI_PROCESSING_FAILED'
+            : 'UNKNOWN_ERROR';
 
-        // Provide diagnostic information in development
-        if (process.env.NODE_ENV === 'development') {
-          await stream.write(
-            `data: {"error": "${errorMessage}", "timestamp": ${errorTime}}\n\n`
-          );
-        }
-      } catch (errorHandlingError) {
-        logger.error(
-          `[${user.id}] Error in error handling:`,
-          errorHandlingError
-        );
-      }
+      const errorSSEMessage: ErrorMessage = {
+        type: 'error',
+        timestamp: new Date().toISOString(),
+        request_id: requestId,
+        error: {
+          code: errorCode,
+          message: errorMessage,
+          timestamp: new Date().toISOString(),
+          request_id: requestId,
+          recoverable: errorCode !== 'MISSING_MESSAGE',
+          processing_time_ms: errorTime - requestStartTime,
+        },
+      };
+      await sendMessage(errorSSEMessage);
 
       await new Promise(resolve => setTimeout(resolve, 500));
     } finally {
@@ -310,12 +288,6 @@ app.post('/stream', requireAuth, async c => {
       logger.info(
         `[${user.id}] Stream session completed after ${(finalTime - requestStartTime).toFixed(2)} ms`
       );
-
-      try {
-        sseOutput.onFinish?.({ complete: true, sessionId: user.id });
-      } catch (finishError) {
-        logger.error(`[${user.id}] Error in finish handler:`, finishError);
-      }
     }
   });
 });
@@ -376,7 +348,7 @@ app.post('/', requireAuth, async c => {
 
   // Context generation with timing
   const contextStartTime = performance.now();
-  const { runtimeContext, contextMessage, locale, localeSystemMessage } =
+  const { runtimeContext, contextMessage, localeSystemMessage } =
     await generateRequestContext(user, c);
   const contextEndTime = performance.now();
   logger.info(
@@ -386,67 +358,31 @@ app.post('/', requireAuth, async c => {
 
   // Get cached memory patterns
   const { resourceId, threadId } = getCachedMemoryPatterns(user.id);
-
-  const usingVNextNetwork = process.env.MASTRA_USING_VNEXT_NETWORK === 'true';
-
   try {
-    if (usingVNextNetwork) {
-      const networkStartTime = performance.now();
-      const network = mastra.vnext_getNetwork('orchestrator-network')!;
-      const networkEndTime = performance.now();
-      logger.info(
-        `[${user.id}] vNext network retrieval took ${(networkEndTime - networkStartTime).toFixed(2)} ms`
-      );
+    const masterAgent = mastra.getAgent('masterAgent')!;
+    const generateStartTime = performance.now();
+    const response = await masterAgent.generate(message, {
+      resourceId,
+      threadId,
+      maxRetries: 1,
+      maxSteps: 5,
+      maxTokens: 1024,
+      runtimeContext,
+      context: [
+        { role: 'system', content: localeSystemMessage },
+        contextMessage,
+      ],
+    });
+    const generateEndTime = performance.now();
+    const totalDuration = generateEndTime - requestStartTime;
+    logger.info(
+      `[${user.id}] Agent generate took ${(generateEndTime - generateStartTime).toFixed(2)} ms, total: ${totalDuration.toFixed(2)} ms`
+    );
 
-      logger.info(
-        `[${user.id}] Agent: Using vNext network (locale: ${locale}): ${contextMessage.content} ${message}`
-      );
-
-      const generateStartTime = performance.now();
-      const response = await network.generate(
-        `${localeSystemMessage}\n\n${contextMessage.content} ${message}`,
-        {
-          resourceId,
-          threadId,
-          runtimeContext,
-        }
-      );
-      const generateEndTime = performance.now();
-      const totalDuration = generateEndTime - requestStartTime;
-      logger.info(
-        `[${user.id}] vNext generate took ${(generateEndTime - generateStartTime).toFixed(2)} ms, total: ${totalDuration.toFixed(2)} ms`
-      );
-
-      return c.json({
-        response: response.result,
-        userId: user.id,
-      });
-    } else {
-      const masterAgent = mastra.getAgent('masterAgent')!;
-      const generateStartTime = performance.now();
-      const response = await masterAgent.generate(message, {
-        resourceId,
-        threadId,
-        maxRetries: 1,
-        maxSteps: 5,
-        maxTokens: 1024,
-        runtimeContext,
-        context: [
-          { role: 'system', content: localeSystemMessage },
-          contextMessage,
-        ],
-      });
-      const generateEndTime = performance.now();
-      const totalDuration = generateEndTime - requestStartTime;
-      logger.info(
-        `[${user.id}] Agent generate took ${(generateEndTime - generateStartTime).toFixed(2)} ms, total: ${totalDuration.toFixed(2)} ms`
-      );
-
-      return c.json({
-        response: response.text,
-        userId: user.id,
-      });
-    }
+    return c.json({
+      response: response.text,
+      userId: user.id,
+    });
   } catch (error) {
     const errorTime = performance.now();
     const totalDuration = errorTime - requestStartTime;
