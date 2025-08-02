@@ -3,12 +3,7 @@ import { streamSSE } from 'hono/streaming';
 import { Session } from '../middleware/auth';
 import logger from '../utils/logger';
 import { requireAuth } from '../middleware/auth';
-import {
-  SSEMessage,
-  TextMessage,
-  StatusMessage,
-  ErrorMessage,
-} from '../utils/sse';
+import { SSEMessage, SSEHelper } from '../utils/sse';
 import { mastraMemoryService } from '../../mastra/memory/memory.service';
 import { memoryPatterns } from '../../mastra/memory/memory.dto';
 import { messageHistory } from './history.service';
@@ -100,21 +95,27 @@ app.post('/stream', requireAuth, async c => {
     let textSequence = 0;
 
     // Send SSE prelude immediately to establish connection
-    await stream.write(':\n\n');
+    await SSEHelper.sendPrelude(stream);
 
-    // Keep-alive mechanism
-    const keepAliveInterval = setInterval(async () => {
-      try {
-        await stream.write(': keep-alive\n\n');
-      } catch (error) {
-        logger.error('Error writing keep-alive:', error);
-        clearInterval(keepAliveInterval);
-      }
-    }, 500);
+    // Keep-alive mechanism with enhanced logging
+    const keepAliveInterval = SSEHelper.createKeepAliveInterval(
+      stream,
+      500,
+      logger,
+      user.id
+    );
 
-    // Helper function to send SSE messages with proper formatting
+    // Session management for lifecycle tracking
+    const sessionManager = SSEHelper.createSessionManager(
+      user.id,
+      '/chat/stream',
+      logger
+    );
+
+    // Helper function to send SSE messages with proper formatting and tracking
     const sendMessage = async (message: SSEMessage) => {
-      await stream.write(`data: ${JSON.stringify(message)}\n\n`);
+      await SSEHelper.sendMessage(stream, message);
+      sessionManager.trackMessage(message.type);
     };
 
     try {
@@ -123,13 +124,11 @@ app.post('/stream', requireAuth, async c => {
       }
 
       // Send status: Starting processing
-      const startMessage: StatusMessage = {
-        type: 'status',
-        status: 'processing_started',
-        message: 'Starting message processing',
-        timestamp: new Date().toISOString(),
-        request_id: requestId,
-      };
+      const startMessage = SSEHelper.createStatusMessage(
+        requestId,
+        'processing_started',
+        'Starting message processing'
+      );
       await sendMessage(startMessage);
 
       // Detailed timing instrumentation
@@ -148,13 +147,11 @@ app.post('/stream', requireAuth, async c => {
       logger.info(`[${user.id}] Agent: Using agent (locale: ${locale})`);
 
       // Send status: AI processing started
-      const aiProcessingMessage: StatusMessage = {
-        type: 'status',
-        status: 'ai_processing_started',
-        message: 'Starting AI text generation',
-        timestamp: new Date().toISOString(),
-        request_id: requestId,
-      };
+      const aiProcessingMessage = SSEHelper.createStatusMessage(
+        requestId,
+        'ai_processing_started',
+        'Starting AI text generation'
+      );
       await sendMessage(aiProcessingMessage);
 
       const masterAgent = mastra.getAgent('masterAgent')!;
@@ -201,18 +198,12 @@ app.post('/stream', requireAuth, async c => {
 
         try {
           // Send text chunk as structured message
-          const textMessage: TextMessage = {
-            type: 'text',
-            data: chunk,
-            timestamp: new Date().toISOString(),
-            request_id: requestId,
-            metadata: {
-              sequence: textSequence++,
-              format: 'raw',
-              char_count: chunk.length,
-              is_complete_sentence: false,
-            },
-          };
+          const textMessage = SSEHelper.createTextMessage(requestId, chunk, {
+            sequence: textSequence++,
+            format: 'raw',
+            char_count: chunk.length,
+            is_complete_sentence: false,
+          });
           await sendMessage(textMessage);
 
           if (process.env.ENABLE_PERFORMANCE_LOGGING === 'true') {
@@ -230,17 +221,15 @@ app.post('/stream', requireAuth, async c => {
       }
 
       // Send completion message
-      const completionMessage: StatusMessage = {
-        type: 'status',
-        status: 'complete',
-        message: 'Processing completed successfully',
-        timestamp: new Date().toISOString(),
-        request_id: requestId,
-        metadata: {
+      const completionMessage = SSEHelper.createStatusMessage(
+        requestId,
+        'complete',
+        'Processing completed successfully',
+        {
           total_processing_time_ms: performance.now() - requestStartTime,
           text_chunks: textSequence,
-        },
-      };
+        }
+      );
       await sendMessage(completionMessage);
 
       const totalProcessingTime = performance.now() - requestStartTime;
@@ -257,32 +246,23 @@ app.post('/stream', requireAuth, async c => {
       // Send structured error message
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
-      const errorCode = errorMessage.includes('Message is required')
-        ? 'MISSING_MESSAGE'
-        : errorMessage.includes('Context')
-          ? 'CONTEXT_GENERATION_FAILED'
-          : errorMessage.includes('Agent')
-            ? 'AI_PROCESSING_FAILED'
-            : 'UNKNOWN_ERROR';
+      const errorCode = SSEHelper.determineErrorCode(errorMessage);
 
-      const errorSSEMessage: ErrorMessage = {
-        type: 'error',
-        timestamp: new Date().toISOString(),
-        request_id: requestId,
-        error: {
-          code: errorCode,
-          message: errorMessage,
-          timestamp: new Date().toISOString(),
-          request_id: requestId,
-          recoverable: errorCode !== 'MISSING_MESSAGE',
-          processing_time_ms: errorTime - requestStartTime,
-        },
-      };
+      const errorSSEMessage = SSEHelper.createErrorMessage(
+        requestId,
+        errorMessage,
+        errorCode,
+        errorCode !== 'MISSING_MESSAGE',
+        errorTime - requestStartTime
+      );
       await sendMessage(errorSSEMessage);
 
       await new Promise(resolve => setTimeout(resolve, 500));
     } finally {
       clearInterval(keepAliveInterval);
+
+      // End session tracking
+      sessionManager.end();
 
       const finalTime = performance.now();
       logger.info(

@@ -3,8 +3,8 @@
  * Direct provider integrations without complex abstractions
  */
 
-import type { TextToSpeechConfig } from './config';
-import { transcriptionConfigs, ttsConfigs } from './config';
+import type { TextToSpeechConfig } from './voice.dto';
+import { transcriptionConfigs, ttsConfigs } from './voice.dto';
 import { CartesiaClient } from '@cartesia/cartesia-js';
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import Groq from 'groq-sdk';

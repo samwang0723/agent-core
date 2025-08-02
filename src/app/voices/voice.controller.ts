@@ -7,14 +7,7 @@ import { transcribeAudio, synthesizeSpeechStream } from './voice.service';
 import { memoryPatterns } from '../../mastra/memory/memory.dto';
 import { generateRequestContext } from '../conversations/conversation.service';
 import { mastra } from '../../mastra';
-import {
-  SSEMessage,
-  TranscriptMessage,
-  TextMessage,
-  AudioMessage,
-  StatusMessage,
-  ErrorMessage,
-} from '../utils/sse';
+import { SSEMessage, SSEHelper } from '../utils/sse';
 
 type Env = {
   Variables: {
@@ -317,21 +310,27 @@ app.post('/realtime', requireAuth, async c => {
     let audioSequence = 0;
 
     // Send SSE prelude immediately to establish connection
-    await stream.write(':\n\n');
+    await SSEHelper.sendPrelude(stream);
 
-    // Keep-alive mechanism
-    const keepAliveInterval = setInterval(async () => {
-      try {
-        await stream.write(': keep-alive\n\n');
-      } catch (error) {
-        logger.error('Error writing keep-alive:', error);
-        clearInterval(keepAliveInterval);
-      }
-    }, 500);
+    // Keep-alive mechanism with enhanced logging
+    const keepAliveInterval = SSEHelper.createKeepAliveInterval(
+      stream,
+      500,
+      logger,
+      user.id
+    );
 
-    // Helper function to send SSE messages with proper formatting
+    // Session management for lifecycle tracking
+    const sessionManager = SSEHelper.createSessionManager(
+      user.id,
+      '/voice/realtime',
+      logger
+    );
+
+    // Helper function to send SSE messages with proper formatting and tracking
     const sendMessage = async (message: SSEMessage) => {
-      await stream.write(`data: ${JSON.stringify(message)}\n\n`);
+      await SSEHelper.sendMessage(stream, message);
+      sessionManager.trackMessage(message.type);
     };
 
     // Text streaming callback for dual streaming
@@ -339,21 +338,20 @@ app.post('/realtime', requireAuth, async c => {
       ? async (text: string, format: 'sentence' | 'raw') => {
           // Filter based on text format preference
           if (format === 'sentence') {
-            const message: TextMessage = {
-              type: 'text',
-              data: text + ' ', // Add space to ensure sentence boundaries
-              timestamp: new Date().toISOString(),
-              request_id: requestId,
-            };
+            const metadata = includeMetadata
+              ? {
+                  sequence: textSequence++,
+                  format: format,
+                  char_count: text.length,
+                  is_complete_sentence: false,
+                }
+              : undefined;
 
-            if (includeMetadata) {
-              message.metadata = {
-                sequence: textSequence++,
-                format: format,
-                char_count: text.length,
-                is_complete_sentence: false,
-              };
-            }
+            const message = SSEHelper.createTextMessage(
+              requestId,
+              text + ' ', // Add space to ensure sentence boundaries
+              metadata
+            );
 
             await sendMessage(message);
           }
@@ -378,13 +376,11 @@ app.post('/realtime', requireAuth, async c => {
       );
 
       // Send status: Starting transcription
-      const transcriptionStartedMessage: StatusMessage = {
-        type: 'status',
-        status: 'transcription_started',
-        message: 'Starting audio transcription',
-        timestamp: new Date().toISOString(),
-        request_id: requestId,
-      };
+      const transcriptionStartedMessage = SSEHelper.createStatusMessage(
+        requestId,
+        'transcription_started',
+        'Starting audio transcription'
+      );
       await sendMessage(transcriptionStartedMessage);
 
       // Step 1: Transcribe audio to text
@@ -403,31 +399,27 @@ app.post('/realtime', requireAuth, async c => {
       logger.info(`[${user.id}] Transcribed: "${transcribedText}"`);
 
       // Send transcript as dedicated transcript event
-      const transcriptMessage: TranscriptMessage = {
-        type: 'transcript',
-        data: transcribedText,
-        timestamp: new Date().toISOString(),
-        request_id: requestId,
-        metadata: {
+      const transcriptMessage = SSEHelper.createTranscriptMessage(
+        requestId,
+        transcribedText,
+        {
           char_count: transcribedText.length,
           processing_time_ms: transcriptionEndTime - transcriptionStartTime,
           engine: 'groq',
-        },
-      };
+        }
+      );
       await sendMessage(transcriptMessage);
 
       // Send status: Transcription complete
-      const transcriptionCompleteMessage: StatusMessage = {
-        type: 'status',
-        status: 'transcription_complete',
-        message: 'Audio transcription completed',
-        timestamp: new Date().toISOString(),
-        request_id: requestId,
-        metadata: {
+      const transcriptionCompleteMessage = SSEHelper.createStatusMessage(
+        requestId,
+        'transcription_complete',
+        'Audio transcription completed',
+        {
           processing_time_ms: transcriptionEndTime - transcriptionStartTime,
           transcribed_length: transcribedText.length,
-        },
-      };
+        }
+      );
       await sendMessage(transcriptionCompleteMessage);
 
       // Step 2: Generate context for AI processing
@@ -444,13 +436,11 @@ app.post('/realtime', requireAuth, async c => {
       const { resourceId, threadId } = getCachedMemoryPatterns(user.id);
 
       // Send status: Starting AI processing
-      const aiProcessingStartedMessage: StatusMessage = {
-        type: 'status',
-        status: 'ai_processing_started',
-        message: 'Starting AI text generation',
-        timestamp: new Date().toISOString(),
-        request_id: requestId,
-      };
+      const aiProcessingStartedMessage = SSEHelper.createStatusMessage(
+        requestId,
+        'ai_processing_started',
+        'Starting AI text generation'
+      );
       await sendMessage(aiProcessingStartedMessage);
 
       // Step 4: Stream AI response
@@ -473,13 +463,11 @@ app.post('/realtime', requireAuth, async c => {
       const textStream = streamResult.textStream as ReadableStream<string>;
 
       // Send status: AI processing complete, starting TTS
-      const ttsStartedMessage: StatusMessage = {
-        type: 'status',
-        status: 'tts_started',
-        message: 'Starting text-to-speech conversion',
-        timestamp: new Date().toISOString(),
-        request_id: requestId,
-      };
+      const ttsStartedMessage = SSEHelper.createStatusMessage(
+        requestId,
+        'tts_started',
+        'Starting text-to-speech conversion'
+      );
       await sendMessage(ttsStartedMessage);
 
       // Step 5: Create sentence iterator and TTS stream with text streaming callback
@@ -514,39 +502,37 @@ app.post('/realtime', requireAuth, async c => {
 
           // Send audio chunk with enhanced metadata
           const base64Audio = Buffer.from(value).toString('base64');
-          const audioMessage: AudioMessage = {
-            type: 'audio',
-            data: base64Audio,
-            timestamp: new Date().toISOString(),
-            request_id: requestId,
-          };
 
-          if (includeMetadata) {
-            audioMessage.metadata = {
-              sequence: audioSequence++,
-              chunk_size: value.length,
-              engine: engine,
-              encoding: 'pcm_s16le',
-            };
-          }
+          const metadata = includeMetadata
+            ? {
+                sequence: audioSequence++,
+                chunk_size: value.length,
+                engine: engine,
+                encoding: 'pcm_s16le',
+              }
+            : undefined;
+
+          const audioMessage = SSEHelper.createAudioMessage(
+            requestId,
+            base64Audio,
+            metadata
+          );
 
           await sendMessage(audioMessage);
         }
 
         // Send completion signals
-        const completionMessage: StatusMessage = {
-          type: 'status',
-          status: 'complete',
-          message: 'Processing completed successfully',
-          timestamp: new Date().toISOString(),
-          request_id: requestId,
-          metadata: {
+        const completionMessage = SSEHelper.createStatusMessage(
+          requestId,
+          'complete',
+          'Processing completed successfully',
+          {
             total_processing_time_ms: performance.now() - requestStartTime,
             audio_chunks: chunkCount,
             text_chunks: textSequence,
             engine: engine,
-          },
-        };
+          }
+        );
         await sendMessage(completionMessage);
 
         const totalTime = performance.now() - requestStartTime;
@@ -566,32 +552,21 @@ app.post('/realtime', requireAuth, async c => {
       // Send enhanced error to client
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
-      const errorCode = errorMessage.includes('No speech detected')
-        ? 'NO_SPEECH_DETECTED'
-        : errorMessage.includes('Audio file is required')
-          ? 'MISSING_AUDIO_FILE'
-          : errorMessage.includes('TTS')
-            ? 'TTS_PROCESSING_FAILED'
-            : errorMessage.includes('transcription')
-              ? 'TRANSCRIPTION_FAILED'
-              : 'UNKNOWN_ERROR';
+      const errorCode = SSEHelper.determineErrorCode(errorMessage);
 
-      const errorSSEMessage: ErrorMessage = {
-        type: 'error',
-        timestamp: new Date().toISOString(),
-        request_id: requestId,
-        error: {
-          code: errorCode,
-          message: errorMessage,
-          timestamp: new Date().toISOString(),
-          request_id: requestId,
-          recoverable: errorCode !== 'MISSING_AUDIO_FILE',
-          processing_time_ms: errorTime - requestStartTime,
-        },
-      };
+      const errorSSEMessage = SSEHelper.createErrorMessage(
+        requestId,
+        errorMessage,
+        errorCode,
+        errorCode !== 'MISSING_AUDIO_FILE',
+        errorTime - requestStartTime
+      );
       await sendMessage(errorSSEMessage);
     } finally {
       clearInterval(keepAliveInterval);
+
+      // End session tracking
+      sessionManager.end();
 
       const finalTime = performance.now();
       logger.info(
