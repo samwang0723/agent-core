@@ -280,7 +280,7 @@ export function synthesizeSpeechStream(
           processTextChunk: (text: string) => Promise<void>
         ) => {
           let textBuffer = '';
-          const sentenceEnders = ['.', '!', '?', '\n'];
+          const sentenceEnders = ['.', '!', '?', '\n', '。', '！', '？'];
           const minChunkSize = 20;
 
           // Process incoming text chunks
@@ -288,10 +288,10 @@ export function synthesizeSpeechStream(
           for await (const chunk of textChunks) {
             if (abortSignal?.aborted) break;
 
-            // Stream raw text chunks immediately if callback provided
-            if (onTextChunk) {
-              onTextChunk(chunk, 'raw');
-            }
+            // deprecated: Stream raw text chunks immediately if callback provided
+            // if (onTextChunk) {
+            //   onTextChunk(chunk, 'raw');
+            // }
 
             textBuffer += chunk;
 

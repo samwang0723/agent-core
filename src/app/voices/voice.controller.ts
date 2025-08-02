@@ -352,10 +352,10 @@ app.post('/realtime', requireAuth, async c => {
     const textStreamCallback = includeText
       ? async (text: string, format: 'sentence' | 'raw') => {
           // Filter based on text format preference
-          if (format === 'raw') {
+          if (format === 'sentence') {
             const message: TextMessage = {
               type: 'text',
-              data: text,
+              data: text + ' ', // Add space to ensure sentence boundaries
               timestamp: new Date().toISOString(),
               request_id: requestId,
             };
