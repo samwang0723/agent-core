@@ -203,19 +203,6 @@ async function* createSentenceIterator(textStream: ReadableStream<string>) {
  *         schema:
  *           type: boolean
  *           default: false
- *       - name: text_format
- *         in: query
- *         description: Text streaming format preference
- *         required: false
- *         schema:
- *           type: string
- *           enum: [raw, sentences, both]
- *           default: sentences
- *         description: |
- *           Format options:
- *           - raw: Stream raw text chunks as they are generated
- *           - sentences: Stream complete sentences only
- *           - both: Stream both raw chunks and complete sentences
  *       - name: include_metadata
  *         in: query
  *         description: Include sequence numbers and timing metadata
@@ -236,7 +223,7 @@ async function* createSentenceIterator(textStream: ReadableStream<string>) {
  *                 description: Audio file to transcribe
  *               engine:
  *                 type: string
- *                 description: TTS engine to use (cartesia, elevenlabs, minimax)
+ *                 description: TTS engine to use (cartesia, elevenlabs, cartesiachinese)
  *                 default: cartesia
  *     responses:
  *       200:
@@ -324,7 +311,6 @@ app.post('/realtime', requireAuth, async c => {
 
     // Parse query parameters for streaming options
     const includeText = c.req.query('include_text') === 'true';
-    // const textFormat = c.req.query('text_format') || 'sentences';
     const includeMetadata = c.req.query('include_metadata') === 'true';
 
     let textSequence = 0;
