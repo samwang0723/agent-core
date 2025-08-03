@@ -7,9 +7,9 @@ services:
     restart: always
     command: postgres -c max_connections=100
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: agent-core-main
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST_AUTH_METHOD: trust
       POSTGRES_INITDB_ARGS: '--auth-host=md5'
     ports:
@@ -20,60 +20,75 @@ services:
       - db_data:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d agent-core-main']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
   google-assistant:
-    image: mcp/google-assistant:latest
+    image: samwang0723/mcp-google-assistant:latest
     environment:
-      - SKIP_SSL_VERIFICATION=true
+      - SKIP_SSL_VERIFICATION=${SKIP_SSL_VERIFICATION}
     ports:
-      - '3003:3003'
+      - '3003:3000'
     networks:
       - agent-network
 
   time:
-    image: mcp/time:latest
+    image: samwang0723/mcp-time:latest
+    environment:
+      - TZ=Asia/Hong_Kong
     ports:
-      - '3002:3002'
+      - '3002:3000'
     networks:
       - agent-network
 
   booking:
-    image: mcp/booking:latest
+    image: samwang0723/mcp-booking:latest
+    environment:
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+      - DEFAULT_LATITUDE=${DEFAULT_LATITUDE}
+      - DEFAULT_LONGITUDE=${DEFAULT_LONGITUDE}
+      - DEFAULT_SEARCH_RADIUS=${DEFAULT_SEARCH_RADIUS}
     ports:
-      - '3001:3001'
+      - '3001:3000'
     networks:
       - agent-network
 
   web-search:
-    image: mcp/brave:latest
+    image: samwang0723/mcp-brave:latest
+    environment:
+      - BRAVE_API_KEY=${BRAVE_API_KEY}
     ports:
-      - '3004:3004'
+      - '3004:3000'
     networks:
       - agent-network
 
   atlassian:
-    image: mcp/atlassian:latest
+    image: samwang0723/mcp-atlassian:latest
+    environment:
+      - ATLASSIAN_HOST=${ATLASSIAN_HOST}
+      - ATLASSIAN_EMAIL=${ATLASSIAN_EMAIL}
+      - ATLASSIAN_API_TOKEN=${ATLASSIAN_API_TOKEN}
     ports:
-      - '3005:3005'
+      - '3005:3000'
     networks:
       - agent-network
 
   reddit:
-    image: mcp/reddit:latest
+    image: samwang0723/mcp-reddit:latest
     ports:
-      - '3006:3006'
+      - '3006:3000'
     networks:
       - agent-network
 
   perplexity:
-    image: mcp/perplexity:latest
+    image: samwang0723/mcp-perplexity:latest
+    environment:
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
     ports:
-      - '3007:3007'
+      - '3007:3000'
     networks:
       - agent-network
 
