@@ -1,6 +1,6 @@
 import winston from 'winston';
 
-interface CustomLogger extends winston.Logger {
+export interface CustomLogger extends winston.Logger {
   getLevel(): string;
   setLevel(level: string): void;
   setName(name: string): void;
