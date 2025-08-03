@@ -495,9 +495,9 @@ app.post('/realtime', requireAuth, async c => {
           if (firstAudioChunk) {
             const firstAudioTime = performance.now();
             logger.info(
-              `[${user.id}] First audio chunk after ${(firstAudioTime - requestStartTime).toFixed(2)} ms`
+              `[${user.id}] First audio chunk (before) after ${(firstAudioTime - requestStartTime).toFixed(2)} ms`
             );
-            firstAudioChunk = false;
+            // firstAudioChunk = false;
           }
 
           // Send audio chunk with enhanced metadata
@@ -519,6 +519,13 @@ app.post('/realtime', requireAuth, async c => {
           );
 
           await sendMessage(audioMessage);
+          if (firstAudioChunk) {
+            const firstAudioTime = performance.now();
+            logger.info(
+              `[${user.id}] First audio chunk (sent) after ${(firstAudioTime - requestStartTime).toFixed(2)} ms`
+            );
+            firstAudioChunk = false;
+          }
         }
 
         // Send completion signals
