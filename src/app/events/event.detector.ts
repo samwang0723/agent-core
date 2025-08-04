@@ -126,6 +126,7 @@ export class EventDetector {
 
   public static detectCalendarEvents(
     userId: string,
+    userEmail: string,
     newEvents: (CalendarEvent & { id: string })[],
     existingEventIds: Set<string>
   ): (
@@ -216,6 +217,7 @@ export class EventDetector {
     if (newEvents.length > 1) {
       const conflictAnalysis = ConflictDetectionService.analyzeEventConflicts(
         userId,
+        userEmail,
         newEvents,
         {
           enableBackToBackDetection: true,
