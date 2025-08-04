@@ -1,3 +1,6 @@
+import { CartesiaClient } from '@cartesia/cartesia-js';
+import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
+
 export type ModelProvider =
   | 'anthropic'
   | 'openai'
@@ -28,7 +31,7 @@ export interface TranscriptionConfig extends ModelConfig {
 export const transcriptionConfigs: Record<string, TranscriptionConfig> = {
   groq: {
     provider: 'groq',
-    modelName: 'whisper-large-v3',
+    modelName: 'whisper-large-v3-turbo',
     apiKey: process.env.GROQ_API_KEY,
     format: (process.env.GROQ_TRANSCRIPTION_FORMAT as 'wav' | 'webm') || 'wav',
     inputType: 'container',
@@ -67,3 +70,25 @@ export const ttsConfigs: Record<string, TextToSpeechConfig> = {
     voiceId: process.env.ELEVENLABS_VOICE_ID,
   },
 };
+
+/**
+ * Client pool for reusing TTS API clients to reduce connection overhead
+ */
+export class TTSClientPool {
+  private static elevenLabsClient: ElevenLabsClient | null = null;
+  private static cartesiaClient: CartesiaClient | null = null;
+
+  static getElevenLabsClient(apiKey: string): ElevenLabsClient {
+    if (!this.elevenLabsClient) {
+      this.elevenLabsClient = new ElevenLabsClient({ apiKey });
+    }
+    return this.elevenLabsClient;
+  }
+
+  static getCartesiaClient(apiKey: string): CartesiaClient {
+    if (!this.cartesiaClient) {
+      this.cartesiaClient = new CartesiaClient({ apiKey });
+    }
+    return this.cartesiaClient;
+  }
+}

@@ -4,9 +4,7 @@
  */
 
 import type { TextToSpeechConfig } from './voice.dto';
-import { transcriptionConfigs, ttsConfigs } from './voice.dto';
-import { CartesiaClient } from '@cartesia/cartesia-js';
-import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
+import { transcriptionConfigs, TTSClientPool, ttsConfigs } from './voice.dto';
 import Groq from 'groq-sdk';
 import logger from '../utils/logger';
 
@@ -158,7 +156,7 @@ export async function synthesizeSpeech(
         return new Response('Invalid voice configuration', { status: 500 });
       }
 
-      const cartesia = new CartesiaClient({ apiKey: config.apiKey });
+      const cartesia = TTSClientPool.getCartesiaClient(config.apiKey);
 
       const audioResponse = await cartesia.tts.bytes({
         modelId: config.modelName,
@@ -196,7 +194,7 @@ export async function synthesizeSpeech(
         return new Response('Invalid voice configuration', { status: 500 });
       }
 
-      const elevenlabs = new ElevenLabsClient({ apiKey: config.apiKey });
+      const elevenlabs = TTSClientPool.getElevenLabsClient(config.apiKey);
 
       const audioStream = await elevenlabs.textToSpeech.stream(config.voiceId, {
         text: sanitizedText,
@@ -290,13 +288,7 @@ export function synthesizeSpeechStream(
           for await (const chunk of textChunks) {
             if (abortSignal?.aborted) break;
 
-            // deprecated: Stream raw text chunks immediately if callback provided
-            // if (onTextChunk) {
-            //   onTextChunk(chunk, 'raw');
-            // }
-
             textBuffer += chunk;
-
             // Look for sentence boundaries
             while (textBuffer.length >= minChunkSize) {
               let sentenceEnd = -1;
@@ -376,7 +368,7 @@ export function synthesizeSpeechStream(
             );
           }
 
-          const cartesia = new CartesiaClient({ apiKey: config.apiKey });
+          const cartesia = TTSClientPool.getCartesiaClient(config.apiKey);
 
           const processTextChunk = async (text: string) => {
             if (abortSignal?.aborted) return;
@@ -443,7 +435,7 @@ export function synthesizeSpeechStream(
             );
           }
 
-          const elevenlabs = new ElevenLabsClient({ apiKey: config.apiKey });
+          const elevenlabs = TTSClientPool.getElevenLabsClient(config.apiKey);
 
           const processTextChunk = async (text: string) => {
             if (abortSignal?.aborted) return;
@@ -460,6 +452,9 @@ export function synthesizeSpeechStream(
                 );
               }
 
+              logger.info(`ElevenLabs TTS starting: ${sanitizedText}`);
+
+              const startTime = Date.now();
               const audioStream = await elevenlabs.textToSpeech.stream(
                 config.voiceId!,
                 {
@@ -468,9 +463,14 @@ export function synthesizeSpeechStream(
                   outputFormat: 'pcm_24000',
                 }
               );
+              const endTime = Date.now();
+              const duration = endTime - startTime;
+              logger.info(`ElevenLabs TTS duration: ${duration}ms`);
 
-              // Collect chunks and convert to F32LE
-              const chunks: Buffer[] = [];
+              let audioBuffer = Buffer.alloc(0);
+              const minChunkSize = 1024; // Minimum bytes per chunk (should be frame-aligned)
+              const frameSize = 2; // Adjust based on your audio format
+
               const reader = audioStream.getReader();
               try {
                 // eslint-disable-next-line no-constant-condition
@@ -480,15 +480,34 @@ export function synthesizeSpeechStream(
                   }
                   const { done, value } = await reader.read();
                   if (done) break;
-                  chunks.push(Buffer.from(value));
+
+                  audioBuffer = Buffer.concat([
+                    audioBuffer,
+                    Buffer.from(value),
+                  ]);
+
+                  // Stream chunks when we have enough data or when done
+                  while (
+                    audioBuffer.length >= minChunkSize ||
+                    (done && audioBuffer.length > 0)
+                  ) {
+                    const chunkSize = done ? audioBuffer.length : minChunkSize;
+
+                    // Ensure frame alignment
+                    const alignedSize =
+                      Math.floor(chunkSize / frameSize) * frameSize;
+                    if (alignedSize > 0) {
+                      const chunk = audioBuffer.subarray(0, alignedSize);
+                      controller.enqueue(chunk);
+                      audioBuffer = audioBuffer.subarray(alignedSize);
+                    }
+
+                    if (done) break;
+                  }
                 }
               } finally {
                 reader.releaseLock();
               }
-
-              // Convert S16LE to F32LE and enqueue
-              const s16leBuffer = Buffer.concat(chunks);
-              controller.enqueue(s16leBuffer);
             } catch (error) {
               if (error instanceof Error && error.name !== 'AbortError') {
                 // Enhanced error logging for 400 errors
