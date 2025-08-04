@@ -17,36 +17,6 @@ type Env = {
 
 const app = new Hono<Env>();
 
-// Memory pattern cache with TTL for optimization (reusing from conversation controller)
-const memoryPatternCache = new Map<
-  string,
-  { resourceId: string; threadId: string; timestamp: number }
->();
-const MEMORY_CACHE_TTL = 30000; // 30 seconds
-
-// Helper function to get cached memory patterns
-function getCachedMemoryPatterns(userId: string) {
-  const cacheKey = userId;
-  const cached = memoryPatternCache.get(cacheKey);
-  const now = Date.now();
-
-  if (cached && now - cached.timestamp < MEMORY_CACHE_TTL) {
-    return { resourceId: cached.resourceId, threadId: cached.threadId };
-  }
-
-  const memoryStart = performance.now();
-  const resourceId = memoryPatterns.getResourceId(userId);
-  const threadId = memoryPatterns.getThreadId(userId);
-  const memoryEnd = performance.now();
-
-  logger.info(
-    `[${userId}] Memory pattern generation took ${(memoryEnd - memoryStart).toFixed(2)} ms`
-  );
-
-  memoryPatternCache.set(cacheKey, { resourceId, threadId, timestamp: now });
-  return { resourceId, threadId };
-}
-
 /**
  * Text stream buffer class to handle sentence-based chunking
  */
@@ -432,8 +402,9 @@ app.post('/realtime', requireAuth, async c => {
         `[${user.id}] Context generation took ${(contextEndTime - contextStartTime).toFixed(2)} ms`
       );
 
-      // Step 3: Get cached memory patterns
-      const { resourceId, threadId } = getCachedMemoryPatterns(user.id);
+      // Step 3: Get memory patterns thread/resource key
+      const resourceId = memoryPatterns.getResourceId(user.id);
+      const threadId = memoryPatterns.getThreadId(requestId);
 
       // Send status: Starting AI processing
       const aiProcessingStartedMessage = SSEHelper.createStatusMessage(
@@ -451,8 +422,8 @@ app.post('/realtime', requireAuth, async c => {
         resourceId,
         threadId,
         maxRetries: 1,
-        maxSteps: 5,
-        maxTokens: 1024,
+        maxSteps: 2,
+        maxTokens: 256,
         runtimeContext,
         context: [
           { role: 'system', content: localeSystemMessage },
