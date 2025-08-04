@@ -102,8 +102,8 @@ export async function transcribeAudio(
         apiKey: config.apiKey,
       });
 
-      const audioFile = new File([audio], 'audio.webm', {
-        type: 'audio/webm',
+      const audioFile = new File([audio], 'audio.wav', {
+        type: 'audio/wav',
       });
       const { text } = await groq.audio.transcriptions.create({
         file: audioFile,
