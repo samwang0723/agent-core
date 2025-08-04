@@ -84,12 +84,22 @@ class TextStreamBuffer {
  * Creates an async iterator from text chunks that yields complete sentences
  */
 async function* createSentenceIterator(textStream: ReadableStream<string>) {
+  const iteratorStartTime = performance.now();
+  logger.debug('createSentenceIterator starting');
+
   const reader = textStream.getReader();
   const sentenceQueue: string[] = [];
   let sentenceResolve: ((value: string) => void) | null = null;
   let streamComplete = false;
+  let sentenceCount = 0;
 
   const buffer = new TextStreamBuffer((sentence: string) => {
+    sentenceCount++;
+    const now = performance.now();
+    logger.debug(
+      `Sentence ${sentenceCount} processed after ${(now - iteratorStartTime).toFixed(2)} ms: "${sentence.substring(0, 50)}..."`
+    );
+
     if (sentenceResolve) {
       sentenceResolve(sentence);
       sentenceResolve = null;
@@ -101,12 +111,29 @@ async function* createSentenceIterator(textStream: ReadableStream<string>) {
   // Process the text stream
   const processStream = async () => {
     try {
+      let streamChunkCount = 0;
+      logger.debug('Starting text stream processing');
+
       // eslint-disable-next-line no-constant-condition
       while (true) {
+        const readStartTime = performance.now();
         const { done, value } = await reader.read();
+        const readEndTime = performance.now();
+
+        streamChunkCount++;
+        if (streamChunkCount === 1) {
+          logger.debug(
+            `First text stream read took ${(readEndTime - readStartTime).toFixed(2)} ms`
+          );
+        }
+
         if (done) break;
         buffer.addText(value);
       }
+
+      logger.debug(
+        `Text stream processing complete - ${streamChunkCount} chunks processed`
+      );
       buffer.flush();
     } catch (error) {
       logger.error('Error processing text stream:', error);
@@ -129,24 +156,50 @@ async function* createSentenceIterator(textStream: ReadableStream<string>) {
   processStream();
 
   // Yield sentences as they become available
+  let yieldCount = 0;
   while (true) {
     if (sentenceQueue.length > 0) {
       const sentence = sentenceQueue.shift()!;
       if (!sentence && streamComplete) break; // End of stream
-      if (sentence) yield sentence;
+      if (sentence) {
+        yieldCount++;
+        const yieldTime = performance.now();
+        logger.debug(
+          `Yielding sentence ${yieldCount} after ${(yieldTime - iteratorStartTime).toFixed(2)} ms`
+        );
+        yield sentence;
+      }
     } else if (streamComplete) {
       // Stream is complete and no more sentences
       break;
     } else {
       // Wait for next sentence
+      const waitStartTime = performance.now();
       const sentence = await new Promise<string>(resolve => {
         sentenceResolve = resolve;
       });
+      const waitEndTime = performance.now();
+
+      if (yieldCount === 0) {
+        logger.debug(
+          `First sentence wait took ${(waitEndTime - waitStartTime).toFixed(2)} ms`
+        );
+      }
 
       if (!sentence) break; // End of stream
+      yieldCount++;
+      const yieldTime = performance.now();
+      logger.debug(
+        `Yielding sentence ${yieldCount} after ${(yieldTime - iteratorStartTime).toFixed(2)} ms`
+      );
       yield sentence;
     }
   }
+
+  const iteratorEndTime = performance.now();
+  logger.debug(
+    `createSentenceIterator completed in ${(iteratorEndTime - iteratorStartTime).toFixed(2)} ms, yielded ${yieldCount} sentences`
+  );
 }
 
 /**
@@ -417,19 +470,22 @@ app.post('/realtime', requireAuth, async c => {
       // Step 4: Stream AI response
       const masterAgent = mastra.getAgent('masterAgent')!;
       logger.info(`[${user.id}] Using master agent for AI processing`);
-
+      const startTime = Date.now();
       const streamResult = await masterAgent.stream(transcribedText, {
         resourceId,
         threadId,
         maxRetries: 1,
         maxSteps: 2,
-        maxTokens: 256,
+        maxTokens: 128,
         runtimeContext,
         context: [
           { role: 'system', content: localeSystemMessage },
           contextMessage,
         ],
       });
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      logger.debug(`[${user.id}] AI processing took ${duration}ms`);
 
       const textStream = streamResult.textStream as ReadableStream<string>;
 
@@ -442,12 +498,23 @@ app.post('/realtime', requireAuth, async c => {
       await sendMessage(ttsStartedMessage);
 
       // Step 5: Create sentence iterator and TTS stream with text streaming callback
+      const sentenceIteratorStartTime = performance.now();
       const sentenceIterator = createSentenceIterator(textStream);
+      const sentenceIteratorEndTime = performance.now();
+      logger.debug(
+        `[${user.id}] Sentence iterator creation took ${(sentenceIteratorEndTime - sentenceIteratorStartTime).toFixed(2)} ms`
+      );
+
+      const ttsStreamStartTime = performance.now();
       const ttsStream = synthesizeSpeechStream(
         sentenceIterator,
         engine,
         undefined,
         textStreamCallback
+      );
+      const ttsStreamEndTime = performance.now();
+      logger.debug(
+        `[${user.id}] TTS stream setup took ${(ttsStreamEndTime - ttsStreamStartTime).toFixed(2)} ms`
       );
 
       // Step 6: Stream audio chunks via SSE
@@ -458,21 +525,37 @@ app.post('/realtime', requireAuth, async c => {
       try {
         // eslint-disable-next-line no-constant-condition
         while (true) {
+          const readStartTime = performance.now();
           const { done, value } = await reader.read();
+          const readEndTime = performance.now();
+
+          if (firstAudioChunk) {
+            logger.debug(
+              `[${user.id}] First reader.read() took ${(readEndTime - readStartTime).toFixed(2)} ms`
+            );
+          }
+
           if (done) break;
 
           chunkCount++;
 
           if (firstAudioChunk) {
             const firstAudioTime = performance.now();
-            logger.info(
-              `[${user.id}] First audio chunk (before) after ${(firstAudioTime - requestStartTime).toFixed(2)} ms`
+            logger.debug(
+              `[${user.id}] First audio chunk (before processing) after ${(firstAudioTime - requestStartTime).toFixed(2)} ms`
             );
-            // firstAudioChunk = false;
           }
 
           // Send audio chunk with enhanced metadata
+          const base64StartTime = performance.now();
           const base64Audio = Buffer.from(value).toString('base64');
+          const base64EndTime = performance.now();
+
+          if (firstAudioChunk) {
+            logger.debug(
+              `[${user.id}] Base64 encoding took ${(base64EndTime - base64StartTime).toFixed(2)} ms`
+            );
+          }
 
           const metadata = includeMetadata
             ? {
@@ -483,17 +566,30 @@ app.post('/realtime', requireAuth, async c => {
               }
             : undefined;
 
+          const messageCreateStartTime = performance.now();
           const audioMessage = SSEHelper.createAudioMessage(
             requestId,
             base64Audio,
             metadata
           );
+          const messageCreateEndTime = performance.now();
 
-          await sendMessage(audioMessage);
           if (firstAudioChunk) {
-            const firstAudioTime = performance.now();
-            logger.info(
-              `[${user.id}] First audio chunk (sent) after ${(firstAudioTime - requestStartTime).toFixed(2)} ms`
+            logger.debug(
+              `[${user.id}] Audio message creation took ${(messageCreateEndTime - messageCreateStartTime).toFixed(2)} ms`
+            );
+          }
+
+          const sendStartTime = performance.now();
+          await sendMessage(audioMessage);
+          const sendEndTime = performance.now();
+
+          if (firstAudioChunk) {
+            logger.debug(
+              `[${user.id}] First audio chunk send took ${(sendEndTime - sendStartTime).toFixed(2)} ms`
+            );
+            logger.debug(
+              `[${user.id}] First audio chunk (sent) after ${(sendEndTime - requestStartTime).toFixed(2)} ms`
             );
             firstAudioChunk = false;
           }

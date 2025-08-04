@@ -284,9 +284,21 @@ export function synthesizeSpeechStream(
           const minChunkSize = 20;
 
           // Process incoming text chunks
+          const processStartTime = performance.now();
           logger.debug('Starting to process text chunks');
+          let chunkCount = 0;
+          let firstChunkTime: number | null = null;
+
           for await (const chunk of textChunks) {
             if (abortSignal?.aborted) break;
+
+            chunkCount++;
+            if (firstChunkTime === null) {
+              firstChunkTime = performance.now();
+              logger.debug(
+                `First text chunk received after ${(firstChunkTime - processStartTime).toFixed(2)} ms`
+              );
+            }
 
             textBuffer += chunk;
             // Look for sentence boundaries
@@ -345,16 +357,18 @@ export function synthesizeSpeechStream(
           if (textBuffer.trim() && !abortSignal?.aborted) {
             const remaining = textBuffer.trim();
             logger.debug(
-              'Processing remaining text buffer:',
-              remaining.length,
-              'chars'
+              `Processing remaining text buffer: ${remaining.length} chars`
             );
             if (onTextChunk) {
               onTextChunk(remaining, 'sentence');
             }
             await processTextChunk(remaining);
           }
-          logger.debug('Finished processing all text chunks');
+
+          const processEndTime = performance.now();
+          logger.debug(
+            `Finished processing all text chunks - Total time: ${(processEndTime - processStartTime).toFixed(2)} ms, Chunks processed: ${chunkCount}`
+          );
         };
 
         if (engine === 'cartesia' || engine === 'cartesiachinese') {
@@ -440,8 +454,19 @@ export function synthesizeSpeechStream(
           const processTextChunk = async (text: string) => {
             if (abortSignal?.aborted) return;
 
+            const chunkStartTime = performance.now();
+            logger.debug(
+              `ElevenLabs processTextChunk starting for: "${text.substring(0, 50)}..."`
+            );
+
             // Validate and sanitize text content
+            const sanitizeStartTime = performance.now();
             const sanitizedText = sanitizeTextForTTS(text);
+            const sanitizeEndTime = performance.now();
+            logger.debug(
+              `Text sanitization took ${(sanitizeEndTime - sanitizeStartTime).toFixed(2)} ms`
+            );
+
             if (!sanitizedText) return;
 
             try {
@@ -454,7 +479,7 @@ export function synthesizeSpeechStream(
 
               logger.info(`ElevenLabs TTS starting: ${sanitizedText}`);
 
-              const startTime = Date.now();
+              const apiCallStartTime = performance.now();
               const audioStream = await elevenlabs.textToSpeech.stream(
                 config.voiceId!,
                 {
@@ -463,28 +488,54 @@ export function synthesizeSpeechStream(
                   outputFormat: 'pcm_24000',
                 }
               );
-              const endTime = Date.now();
-              const duration = endTime - startTime;
-              logger.info(`ElevenLabs TTS duration: ${duration}ms`);
+              const apiCallEndTime = performance.now();
+              const apiCallDuration = apiCallEndTime - apiCallStartTime;
+              logger.debug(`ElevenLabs API call took ${apiCallDuration}ms`);
 
               let audioBuffer = Buffer.alloc(0);
               const minChunkSize = 1024; // Minimum bytes per chunk (should be frame-aligned)
               const frameSize = 2; // Adjust based on your audio format
 
+              const streamingStartTime = performance.now();
+              logger.debug(`Starting audio streaming from ElevenLabs`);
+
               const reader = audioStream.getReader();
+              let firstAudioRead = true;
+              let audioReadCount = 0;
+
               try {
                 // eslint-disable-next-line no-constant-condition
                 while (true) {
                   if (abortSignal?.aborted) {
                     return;
                   }
+
+                  const readStartTime = performance.now();
                   const { done, value } = await reader.read();
+                  const readEndTime = performance.now();
+
+                  audioReadCount++;
+                  if (firstAudioRead) {
+                    logger.debug(
+                      `First audio stream read took ${(readEndTime - readStartTime).toFixed(2)} ms`
+                    );
+                    firstAudioRead = false;
+                  }
+
                   if (done) break;
 
+                  const bufferStartTime = performance.now();
                   audioBuffer = Buffer.concat([
                     audioBuffer,
                     Buffer.from(value),
                   ]);
+                  const bufferEndTime = performance.now();
+
+                  if (audioReadCount === 1) {
+                    logger.debug(
+                      `First buffer concat took ${(bufferEndTime - bufferStartTime).toFixed(2)} ms`
+                    );
+                  }
 
                   // Stream chunks when we have enough data or when done
                   while (
@@ -494,6 +545,7 @@ export function synthesizeSpeechStream(
                     const chunkSize = done ? audioBuffer.length : minChunkSize;
 
                     // Ensure frame alignment
+                    const alignmentStartTime = performance.now();
                     const alignedSize =
                       Math.floor(chunkSize / frameSize) * frameSize;
                     if (alignedSize > 0) {
@@ -501,13 +553,30 @@ export function synthesizeSpeechStream(
                       controller.enqueue(chunk);
                       audioBuffer = audioBuffer.subarray(alignedSize);
                     }
+                    const alignmentEndTime = performance.now();
+
+                    if (audioReadCount === 1) {
+                      logger.debug(
+                        `First chunk alignment and enqueue took ${(alignmentEndTime - alignmentStartTime).toFixed(2)} ms`
+                      );
+                    }
 
                     if (done) break;
                   }
                 }
+
+                const streamingEndTime = performance.now();
+                logger.debug(
+                  `ElevenLabs audio streaming completed in ${(streamingEndTime - streamingStartTime).toFixed(2)} ms, ${audioReadCount} reads`
+                );
               } finally {
                 reader.releaseLock();
               }
+
+              const chunkEndTime = performance.now();
+              logger.debug(
+                `ElevenLabs processTextChunk completed in ${(chunkEndTime - chunkStartTime).toFixed(2)} ms`
+              );
             } catch (error) {
               if (error instanceof Error && error.name !== 'AbortError') {
                 // Enhanced error logging for 400 errors

@@ -16,6 +16,9 @@ import logger from './utils/logger';
 import { orchestratorNetwork } from './network/orchestrator';
 
 export const mastra: Mastra = new Mastra({
+  telemetry: {
+    enabled: false,
+  },
   logger: logger,
   server: {
     port: 4111, // Defaults to 4111

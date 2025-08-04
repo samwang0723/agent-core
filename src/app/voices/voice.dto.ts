@@ -53,13 +53,13 @@ export const ttsConfigs: Record<string, TextToSpeechConfig> = {
   },
   cartesia: {
     provider: 'cartesia',
-    modelName: 'sonic-turbo-2025-03-07',
+    modelName: 'sonic-2',
     apiKey: process.env.CARTESIA_API_KEY,
     voiceId: process.env.CARTESIA_VOICE_ID,
   },
   cartesiachinese: {
     provider: 'cartesia',
-    modelName: 'sonic-turbo-2025-03-07',
+    modelName: 'sonic-2',
     apiKey: process.env.CARTESIA_API_KEY,
     voiceId: 'e90c6678-f0d3-4767-9883-5d0ecf5894a8',
   },
