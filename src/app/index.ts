@@ -101,6 +101,7 @@ logger.info(`🚀 Agent Core API Server running on http://localhost:${PORT}`);
 logger.info(`🔐 Authentication: http://localhost:${PORT}/api/v1/auth/google`);
 
 export default {
+  hostname: '0.0.0.0',
   port: PORT,
   fetch: app.fetch,
   idleTimeout: 60,
