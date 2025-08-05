@@ -78,6 +78,11 @@ services:
 
   reddit:
     image: samwang0723/mcp-reddit:latest
+    environment:
+      - REDDIT_USERNAME=${REDDIT_USERNAME}
+      - REDDIT_PASSWORD=${REDDIT_PASSWORD}
+      - REDDIT_CLIENT_ID=${REDDIT_CLIENT_ID}
+      - REDDIT_CLIENT_SECRET=${REDDIT_CLIENT_SECRET}
     ports:
       - '3006:3000'
     networks:
