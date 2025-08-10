@@ -26,12 +26,21 @@ export class PusherEventBroadcaster {
       useTLS: true,
     });
 
+    // Add Pusher error handling to prevent crashes
+    this.setupPusherErrorHandling();
+
     this.eventStorage = new EventStorage();
 
     logger.info('Pusher Event Broadcaster initialized', {
       cluster: process.env.PUSHER_CLUSTER || 'us2',
       appId: process.env.PUSHER_APP_ID || 'not set',
     });
+  }
+
+  private setupPusherErrorHandling(): void {
+    // The server-side Pusher SDK does not expose a client-like connection API.
+    // We rely on robust error handling in `safeTrigger` per request instead.
+    return;
   }
 
   public static getInstance(): PusherEventBroadcaster {
@@ -108,7 +117,7 @@ export class PusherEventBroadcaster {
       };
 
       // Broadcast to user's private channel
-      await this.pusher.trigger(channelName, event.type, eventData);
+      await this.safeTrigger(channelName, event.type, eventData);
 
       logger.info(
         `SUCCESS: Broadcasted event ${event.id} to channel ${channelName} in process ${process.pid}`,
@@ -174,18 +183,14 @@ export class PusherEventBroadcaster {
         // Broadcast to specific users
         for (const userId of userIds) {
           const channelName = `user-${userId}`;
-          await this.pusher.trigger(
-            channelName,
-            'system_notification',
-            eventData
-          );
+          await this.safeTrigger(channelName, 'system_notification', eventData);
         }
         logger.info(
           `Broadcasted system notification to ${userIds.length} specific users`
         );
       } else {
         // Broadcast to all users (use a global channel)
-        await this.pusher.trigger(
+        await this.safeTrigger(
           'global-notifications',
           'system_notification',
           eventData
@@ -245,7 +250,7 @@ export class PusherEventBroadcaster {
         isProactive: true,
       };
 
-      await this.pusher.trigger(channelName, 'chat_message', chatData);
+      await this.safeTrigger(channelName, 'chat_message', chatData);
 
       logger.debug(`Broadcasted chat message to user ${userId}`, {
         userId,
@@ -272,6 +277,63 @@ export class PusherEventBroadcaster {
       cluster: process.env.PUSHER_CLUSTER || 'us2',
       appId: process.env.PUSHER_APP_ID || '',
     };
+  }
+
+  /**
+   * Safely trigger Pusher events with error handling
+   */
+  private async safeTrigger(
+    channels: string | string[],
+    event: string,
+    data: Record<string, unknown>
+  ): Promise<void> {
+    try {
+      await this.pusher.trigger(channels, event, data);
+    } catch (error: unknown) {
+      // Handle specific socket/connection errors gracefully
+      const err = error as { code?: string; message?: string } | undefined;
+      if (
+        err?.code === 'ECONNRESET' ||
+        err?.code === 'EPIPE' ||
+        err?.message?.includes('socket') ||
+        err?.message?.includes('connection')
+      ) {
+        logger.warn('Socket connection issue during Pusher trigger:', {
+          error: err?.message,
+          code: err?.code,
+          channels,
+          event,
+          retryable: true,
+        });
+
+        // Attempt one retry after a brief delay
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await this.pusher.trigger(channels, event, data);
+          logger.info('Pusher trigger retry succeeded');
+        } catch (retryError: unknown) {
+          const rerr = retryError as
+            | { message?: string; code?: string }
+            | undefined;
+          logger.error('Pusher trigger retry failed:', {
+            error: rerr?.message,
+            code: rerr?.code,
+            channels,
+            event,
+          });
+          // Don't throw - log and continue to prevent crashes
+        }
+      } else {
+        // For non-socket errors, log and re-throw
+        logger.error('Non-socket Pusher error:', {
+          error: err?.message,
+          code: err?.code,
+          channels,
+          event,
+        });
+        throw error;
+      }
+    }
   }
 
   /**
