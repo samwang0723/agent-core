@@ -13,7 +13,7 @@
   "author": "sam.wang.0723@gmail.com",
   "license": "MIT",
   "dependencies": {
-    "@ai-sdk/anthropic": "^1.2.12",
+    "@ai-sdk/anthropic": "^2.0.1",
     "@ai-sdk/google": "^2.0.3",
     "@ai-sdk/openai": "^2.0.8",
     "@cartesia/cartesia-js": "^2.2.5",

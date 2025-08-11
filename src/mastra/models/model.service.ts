@@ -1,7 +1,9 @@
 import { createOpenAI } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import logger from '../utils/logger';
 import { MODEL_CONFIGS } from './model.dto';
 import { MastraLanguageModel } from '@mastra/core/agent';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 // Create a model instance from a given key
 export const createModelByKey = (
@@ -31,9 +33,8 @@ export const createModelByKey = (
   try {
     switch (config.provider) {
       case 'anthropic': {
-        const anthropic = createOpenAI({
+        const anthropic = createAnthropic({
           apiKey: config.apiKey,
-          baseURL: config.baseURL,
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const model = anthropic(config.modelName as any);
@@ -59,9 +60,8 @@ export const createModelByKey = (
         return model;
       }
       case 'google': {
-        const google = createOpenAI({
+        const google = createGoogleGenerativeAI({
           apiKey: config.apiKey,
-          baseURL: config.baseURL,
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const model = google(config.modelName as any);
@@ -78,7 +78,7 @@ export const createModelByKey = (
           },
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const model = ollama(config.modelName as any);
+        const model = ollama.chat(config.modelName as any);
         logger.info(
           `✅ Ollama model ${config.modelName} initialized successfully for key ${modelKey}`
         );
