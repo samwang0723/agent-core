@@ -1,12 +1,12 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import logger from '../utils/logger';
-import { LanguageModelV1 } from 'ai';
 import { MODEL_CONFIGS } from './model.dto';
+import { MastraLanguageModel } from '@mastra/core/agent';
 
 // Create a model instance from a given key
 export const createModelByKey = (
   modelKey?: string
-): LanguageModelV1 | undefined => {
+): MastraLanguageModel | undefined => {
   if (!modelKey) return undefined;
 
   const config = MODEL_CONFIGS[modelKey];
@@ -18,7 +18,7 @@ export const createModelByKey = (
     throw new Error(error);
   }
 
-  if (!config.apiKey) {
+  if (config.provider !== 'ollama' && !config.apiKey) {
     const error = `Missing API key for ${config.provider} (model: ${modelKey}). Please set LITELLM_KEY environment variable.`;
     logger.error(error);
     throw new Error(error);
@@ -47,8 +47,12 @@ export const createModelByKey = (
           apiKey: config.apiKey,
           baseURL: config.baseURL,
         });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const model = openai(config.modelName as any);
+
+        const model = config.modelName.includes('gpt-5')
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            openai.responses(config.modelName as any)
+          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            openai(config.modelName as any);
         logger.info(
           `✅ OpenAI model ${config.modelName} initialized successfully for key ${modelKey}`
         );
@@ -63,6 +67,20 @@ export const createModelByKey = (
         const model = google(config.modelName as any);
         logger.info(
           `✅ Google model models/${config.modelName} initialized successfully for key ${modelKey}`
+        );
+        return model;
+      }
+      case 'ollama': {
+        const ollama = createOpenAI({
+          baseURL: config.baseURL,
+          headers: {
+            Authorization: `${config.apiKey}`,
+          },
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const model = ollama(config.modelName as any);
+        logger.info(
+          `✅ Ollama model ${config.modelName} initialized successfully for key ${modelKey}`
         );
         return model;
       }

@@ -161,7 +161,7 @@ app.post('/stream', requireAuth, async c => {
         threadId,
         maxRetries: 1,
         maxSteps: 5,
-        maxTokens: 1024,
+        maxOutputTokens: 1024,
         onFinish: () => {
           const totalDuration = performance.now() - requestStartTime;
           logger.info(
@@ -346,7 +346,7 @@ app.post('/', requireAuth, async c => {
       threadId,
       maxRetries: 1,
       maxSteps: 5,
-      maxTokens: 1024,
+      maxOutputTokens: 1024,
       runtimeContext,
       context: [
         { role: 'system', content: localeSystemMessage },

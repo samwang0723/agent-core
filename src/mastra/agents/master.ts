@@ -301,6 +301,5 @@ Remember: You're not just an agent with tools - you're a conversational partner 
       'perplexity_ask'
     )!,
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  memory: mastraMemoryService.getMemory() as any,
+  memory: mastraMemoryService.getMemory(),
 });

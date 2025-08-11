@@ -304,7 +304,7 @@ export class UnifiedSummaryService {
       const response = await generalAgent.generate(prompt, {
         maxRetries: 2,
         maxSteps: 2,
-        maxTokens: 250,
+        maxOutputTokens: 250,
       });
 
       return response.text || null;

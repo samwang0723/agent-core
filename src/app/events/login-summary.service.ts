@@ -334,7 +334,7 @@ export class LoginSummaryService {
       const response = await generalAgent.generate(prompt, {
         maxRetries: 0,
         maxSteps: 1,
-        maxTokens: 600,
+        maxOutputTokens: 600,
       });
 
       return response.text || null;

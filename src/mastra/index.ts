@@ -19,6 +19,7 @@ export const mastra: Mastra = new Mastra({
   telemetry: {
     enabled: false,
   },
+  aiSdkCompat: 'v4',
   logger: logger,
   server: {
     port: 4111, // Defaults to 4111

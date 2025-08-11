@@ -108,7 +108,7 @@ export class EventToChatService {
         threadId,
         maxRetries: 2,
         maxSteps: 2,
-        maxTokens: 200, // Keep responses concise
+        maxOutputTokens: 200, // Keep responses concise
       });
 
       return response.text || null;

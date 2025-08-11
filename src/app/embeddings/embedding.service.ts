@@ -21,10 +21,7 @@ const google = createGoogleGenerativeAI({
     'Accept-Encoding': 'identity',
   },
 });
-const embeddingModel = google.textEmbeddingModel('gemini-embedding-exp-03-07', {
-  outputDimensionality: 1536, // optional, number of dimensions for the embedding
-  taskType: 'SEMANTIC_SIMILARITY', // optional, specifies the task type for generating embeddings
-});
+const embeddingModel = google.textEmbeddingModel('gemini-embedding-exp-03-07');
 
 export class EmbeddingService {
   private async sleep(ms: number): Promise<void> {
@@ -56,6 +53,12 @@ export class EmbeddingService {
         const { embeddings } = await embedMany({
           model: embeddingModel,
           values: contentsToEmbed,
+          providerOptions: {
+            google: {
+              outputDimensionality: 1536, // optional, number of dimensions for the embedding
+              taskType: 'SEMANTIC_SIMILARITY', // optional, specifies the task type for generating embeddings
+            },
+          },
         });
 
         const embeddingData = batch.map((item, i) => ({
