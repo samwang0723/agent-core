@@ -51,6 +51,12 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     baseURL: 'https://api.openai.com/v1',
     apiKey: process.env.OPENAI_API_KEY,
   },
+  'gpt-5': {
+    provider: 'openai',
+    modelName: 'gpt-5-2025-08-07',
+    baseURL: 'https://api.openai.com/v1',
+    apiKey: process.env.OPENAI_API_KEY,
+  },
   'gpt-4o-mini': {
     provider: 'openai',
     modelName: 'gpt-4o-mini',
