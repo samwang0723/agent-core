@@ -19,7 +19,7 @@
     "@cartesia/cartesia-js": "^2.2.5",
     "@elevenlabs/elevenlabs-js": "^2.7.0",
     "@mastra/core": "^0.0.0-ai-v5-20250801192614",
-    "@mastra/memory": "^0.0.0-ai-v5-20250801192614",
+    "@mastra/memory": "^0.12.2",
     "@mastra/pg": "^0.13.1",
     "@trigger.dev/sdk": "^3.3.17",
     "@types/pg": "^8.15.4",
