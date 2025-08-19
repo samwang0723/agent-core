@@ -41,7 +41,7 @@
     "@trigger.dev/build": "^3.3.17",
     "@types/bun": "latest",
     "@types/node": "^24.0.10",
-    "mastra": "^0.0.0-ai-v5-20250801192614",
+    "mastra": "^0.10.21",
     "prettier": "^3.6.2",
     "tsx": "^4.20.3",
     "typescript": "5.9.2"
