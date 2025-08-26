@@ -21,7 +21,7 @@
     "@mastra/core": "^0.0.0-ai-v5-20250801192614",
     "@mastra/memory": "^0.0.0-ai-v5-20250801192614",
     "@mastra/pg": "^0.13.1",
-    "@trigger.dev/sdk": "^3.3.17",
+    "@trigger.dev/sdk": "^4.0.1",
     "@types/pg": "^8.15.4",
     "@typescript-eslint/eslint-plugin": "^8.35.1",
     "@typescript-eslint/parser": "^8.35.1",
