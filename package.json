@@ -38,7 +38,7 @@
     "zod": "^3.25.73"
   },
   "devDependencies": {
-    "@trigger.dev/build": "^3.3.17",
+    "@trigger.dev/build": "^4.0.2",
     "@types/bun": "latest",
     "@types/node": "^24.0.10",
     "mastra": "^0.0.0-ai-v5-20250801192614",
